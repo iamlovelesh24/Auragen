@@ -1,45 +1,23 @@
-"""
-codegen.py
------------
-Week 1 deliverable: LangChain pipeline (Code-Gen Agent) that takes a
-"friction context" (produced later by the Friction Engine telemetry) and
-returns a simplified, pre-styled React component as a string.
-
-This week you can (and should) test it with MOCKED friction contexts —
-you don't need the real telemetry hook wired up yet.
-
-Usage:
-    from codegen import generate_component
-
-    code = generate_component(
-        cognitive_load_score=82,
-        field_name="Annual Income",
-        signal_summary="3 rage clicks, 4s hesitation, field re-focused 5 times",
-        original_field_type="numeric currency input with tooltip",
-    )
-    print(code)
-"""
-
 import os
 import re
 from dataclasses import dataclass
 
-from langchain_openai import ChatOpenAI
+from dotenv import load_dotenv
+load_dotenv()
+
+from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
 from prompts import DESIGN_SYSTEM_CONTEXT, CODEGEN_PROMPT_TEMPLATE
 
 
-MODEL_NAME = os.getenv("CODEGEN_MODEL", "gpt-4o")
-TEMPERATURE = 0.3  # low temperature: we want consistent, valid, on-style code
+MODEL_NAME = os.getenv("CODEGEN_MODEL", "gpt-4o-mini")
+TEMPERATURE = 0.3
 
 
 @dataclass
 class FrictionContext:
-    """Mirrors what the Friction Engine (React + WebSockets) will eventually
-    send over the wire. Defined here so Week-1 testing has a clear shape,
-    and so M/L/R know what fields to send once telemetry is wired up."""
     cognitive_load_score: int
     field_name: str
     signal_summary: str
@@ -57,11 +35,8 @@ def _build_chain():
         ],
         template=CODEGEN_PROMPT_TEMPLATE,
     )
-
-    llm = ChatOpenAI(model=MODEL_NAME, temperature=TEMPERATURE)
-
+    llm = ChatGroq(model=MODEL_NAME, temperature=TEMPERATURE)
     parser = StrOutputParser()
-
     return prompt | llm | parser
 
 
@@ -75,9 +50,38 @@ def _get_chain():
     return _chain
 
 
-def generate_component(
-    cognitive_load_score: int,
-    field_name: str,
-    signal_summary: str,
-    original_field_type: str,
-) -> str:
+def generate_component(cognitive_load_score, field_name, signal_summary, original_field_type):
+    chain = _get_chain()
+    raw_output = chain.invoke({
+        "design_system": DESIGN_SYSTEM_CONTEXT,
+        "cognitive_load_score": cognitive_load_score,
+        "field_name": field_name,
+        "signal_summary": signal_summary,
+        "original_field_type": original_field_type,
+    })
+    return _extract_code_block(raw_output)
+
+
+def _extract_code_block(text):
+    match = re.search(r"```(?:tsx|jsx|javascript)?\s*(.*?)```", text, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return text.strip()
+
+
+if __name__ == "__main__":
+    sample = FrictionContext(
+        cognitive_load_score=82,
+        field_name="Annual Income",
+        signal_summary="3 rage clicks, 4s hesitation, field re-focused 5 times",
+        original_field_type="numeric currency input with tooltip",
+    )
+
+    print("Generating component for sample friction context...\n")
+    code = generate_component(
+        sample.cognitive_load_score,
+        sample.field_name,
+        sample.signal_summary,
+        sample.original_field_type,
+    )
+    print(code)
