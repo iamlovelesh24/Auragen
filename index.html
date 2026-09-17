@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,11 +15,13 @@
     <h2>Click & Hesitation Detection</h2>
 
     <p>
-        This page is a prototype for detecting user clicks
-        and hesitation during interaction.
+        This page is a prototype for detecting user clicks,
+        hesitation, and mouse behavior during interaction.
     </p>
 
     <button id="testButton">Click Me</button>
+
+    <h3>Interaction Metrics</h3>
 
     <p>
         Click Count:
@@ -30,12 +33,46 @@
         <span id="hesitationTime">--</span>
     </p>
 
-     <p>
-         Mouse Velocity:
-         <span id="mouseVelocity">0</span>
-     </p>
+    <p>
+        Hesitation Threshold:
+        <span id="hesitationThreshold">3 seconds</span>
+    </p>
 
-     <p>
+    <p>
+        Hesitation Status:
+        <span id="hesitationStatus">Waiting</span>
+    </p>
+
+    <h3>Mouse Telemetry</h3>
+
+    <p>
+        Mouse Velocity:
+        <span id="mouseVelocity">0</span>
+    </p>
+
+    <p>
+        Average Mouse Velocity:
+        <span id="averageVelocity">0</span>
+    </p>
+
+    <p>
+        Maximum Mouse Velocity:
+        <span id="maxVelocity">0</span>
+    </p>
+
+    <p>
+        Mouse Distance:
+        <span id="mouseDistance">0</span>
+    </p>
+
+    <p>
+        Mouse Movement Time:
+        <span id="mouseMovementTime">0</span>
+    </p>
+
+    <h3>Interaction Pattern</h3>
+
+    <p>
         Click Pattern:
         <span id="clickPattern">Waiting</span>
     </p>
@@ -48,4 +85,5 @@
     <script src="script.js"></script>
 
 </body>
+
 </html>
