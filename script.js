@@ -47,10 +47,19 @@ const MAX_VALID_VELOCITY = 3000;
 // MOUSE ACTIVITY SETTINGS
 // ===============================
 
-// Distance thresholds used to classify
-// overall mouse movement activity
+// Distance thresholds
 const LOW_MOVEMENT_THRESHOLD = 1000;
 const HIGH_MOVEMENT_THRESHOLD = 3000;
+
+
+// ===============================
+// VELOCITY ACTIVITY SETTINGS
+// ===============================
+
+// Velocity thresholds used to classify
+// current mouse movement speed
+const SLOW_VELOCITY_THRESHOLD = 200;
+const FAST_VELOCITY_THRESHOLD = 1000;
 
 
 // ===============================
@@ -74,6 +83,9 @@ const hesitationStatusDisplay =
 
 const velocityDisplay =
     document.getElementById("mouseVelocity");
+
+const mouseVelocityActivityDisplay =
+    document.getElementById("mouseVelocityActivity");
 
 const averageVelocityDisplay =
     document.getElementById("averageVelocity");
@@ -210,6 +222,35 @@ document.addEventListener("mousemove", function (event) {
 
 
             // --------------------------------
+            // Classify current velocity
+            // --------------------------------
+
+            if (
+                currentMouseVelocity <
+                SLOW_VELOCITY_THRESHOLD
+            ) {
+
+                mouseVelocityActivityDisplay.textContent =
+                    "Slow movement";
+            }
+
+            else if (
+                currentMouseVelocity <
+                FAST_VELOCITY_THRESHOLD
+            ) {
+
+                mouseVelocityActivityDisplay.textContent =
+                    "Normal movement";
+            }
+
+            else {
+
+                mouseVelocityActivityDisplay.textContent =
+                    "Fast movement";
+            }
+
+
+            // --------------------------------
             // Update average velocity
             // --------------------------------
 
@@ -247,7 +288,6 @@ document.addEventListener("mousemove", function (event) {
 
                 mouseMovementActivityDisplay.textContent =
                     "Low movement";
-
             }
 
             else if (
@@ -257,7 +297,6 @@ document.addEventListener("mousemove", function (event) {
 
                 mouseMovementActivityDisplay.textContent =
                     "Moderate movement";
-
             }
 
             else {
