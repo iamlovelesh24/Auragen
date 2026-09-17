@@ -44,6 +44,16 @@ const MAX_VALID_VELOCITY = 3000;
 
 
 // ===============================
+// MOUSE ACTIVITY SETTINGS
+// ===============================
+
+// Distance thresholds used to classify
+// overall mouse movement activity
+const LOW_MOVEMENT_THRESHOLD = 1000;
+const HIGH_MOVEMENT_THRESHOLD = 3000;
+
+
+// ===============================
 // HTML ELEMENTS
 // ===============================
 
@@ -73,6 +83,9 @@ const maxVelocityDisplay =
 
 const mouseDistanceDisplay =
     document.getElementById("mouseDistance");
+
+const mouseMovementActivityDisplay =
+    document.getElementById("mouseMovementActivity");
 
 const mouseMovementTimeDisplay =
     document.getElementById("mouseMovementTime");
@@ -221,6 +234,37 @@ document.addEventListener("mousemove", function (event) {
             mouseDistanceDisplay.textContent =
                 totalMouseDistance.toFixed(2) +
                 " px";
+
+
+            // --------------------------------
+            // Classify mouse movement activity
+            // --------------------------------
+
+            if (
+                totalMouseDistance <
+                LOW_MOVEMENT_THRESHOLD
+            ) {
+
+                mouseMovementActivityDisplay.textContent =
+                    "Low movement";
+
+            }
+
+            else if (
+                totalMouseDistance <
+                HIGH_MOVEMENT_THRESHOLD
+            ) {
+
+                mouseMovementActivityDisplay.textContent =
+                    "Moderate movement";
+
+            }
+
+            else {
+
+                mouseMovementActivityDisplay.textContent =
+                    "High movement";
+            }
 
 
             // --------------------------------
