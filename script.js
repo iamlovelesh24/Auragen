@@ -116,7 +116,7 @@ document.addEventListener("mousemove", function (event) {
 
 
     // --------------------------------
-    // Calculate movement
+    // Calculate mouse movement
     // --------------------------------
 
     const deltaX =
@@ -133,7 +133,7 @@ document.addEventListener("mousemove", function (event) {
 
 
     // --------------------------------
-    // Calculate time
+    // Calculate movement time
     // --------------------------------
 
     const timeElapsed =
@@ -141,7 +141,7 @@ document.addEventListener("mousemove", function (event) {
 
 
     // --------------------------------
-    // Ignore extremely small intervals
+    // Validate time interval
     // --------------------------------
 
     if (timeElapsed >= MIN_TIME_INTERVAL) {
@@ -151,7 +151,7 @@ document.addEventListener("mousemove", function (event) {
 
 
         // --------------------------------
-        // Accept only realistic velocity
+        // Accept realistic velocity only
         // --------------------------------
 
         if (velocity <= MAX_VALID_VELOCITY) {
@@ -164,7 +164,7 @@ document.addEventListener("mousemove", function (event) {
 
 
             // --------------------------------
-            // Maximum velocity
+            // Update maximum velocity
             // --------------------------------
 
             if (velocity > maxMouseVelocity) {
@@ -174,7 +174,7 @@ document.addEventListener("mousemove", function (event) {
 
 
             // --------------------------------
-            // Average velocity
+            // Calculate average velocity
             // --------------------------------
 
             let averageVelocity = 0;
@@ -188,7 +188,7 @@ document.addEventListener("mousemove", function (event) {
 
 
             // --------------------------------
-            // Update screen
+            // Update current velocity
             // --------------------------------
 
             velocityDisplay.textContent =
@@ -196,20 +196,36 @@ document.addEventListener("mousemove", function (event) {
                 " px/second";
 
 
+            // --------------------------------
+            // Update average velocity
+            // --------------------------------
+
             averageVelocityDisplay.textContent =
                 averageVelocity.toFixed(2) +
                 " px/second";
 
+
+            // --------------------------------
+            // Update maximum velocity
+            // --------------------------------
 
             maxVelocityDisplay.textContent =
                 maxMouseVelocity.toFixed(2) +
                 " px/second";
 
 
+            // --------------------------------
+            // Update total mouse distance
+            // --------------------------------
+
             mouseDistanceDisplay.textContent =
                 totalMouseDistance.toFixed(2) +
                 " px";
 
+
+            // --------------------------------
+            // Update mouse movement time
+            // --------------------------------
 
             mouseMovementTimeDisplay.textContent =
                 totalMouseTime.toFixed(2) +
@@ -219,12 +235,13 @@ document.addEventListener("mousemove", function (event) {
 
 
     // --------------------------------
-    // Store current position/time
+    // Store current mouse position
     // --------------------------------
 
     lastMouseX = event.clientX;
     lastMouseY = event.clientY;
     lastMouseTime = currentTime;
+
 });
 
 
@@ -245,7 +262,7 @@ button.addEventListener("click", function () {
 
 
     // --------------------------------
-    // Calculate click hesitation
+    // Calculate hesitation time
     // --------------------------------
 
     const currentTime =
@@ -265,8 +282,8 @@ button.addEventListener("click", function () {
 
         hesitationTime =
             (currentTime - startTime) / 1000;
-
     }
+
 
     // --------------------------------
     // SUBSEQUENT CLICKS
@@ -282,8 +299,12 @@ button.addEventListener("click", function () {
     }
 
 
+    // --------------------------------
     // Store current click time
-    lastClickTime = currentTime;
+    // --------------------------------
+
+    lastClickTime =
+        currentTime;
 
 
     // --------------------------------
@@ -299,14 +320,16 @@ button.addEventListener("click", function () {
     // HESITATION DETECTION
     // ===============================
 
-    if (hesitationTime >= HESITATION_THRESHOLD) {
+    if (
+        hesitationTime >=
+        HESITATION_THRESHOLD
+    ) {
 
         hesitationStatusDisplay.textContent =
             "Hesitation detected";
 
         statusDisplay.textContent =
             "Hesitation detected";
-
     }
 
     else {
@@ -327,36 +350,46 @@ button.addEventListener("click", function () {
 
         clickPatternDisplay.textContent =
             "First click";
-
-    }
-
-    else if (clickCount === 2) {
-
-        clickPatternDisplay.textContent =
-            "Second interaction";
-
-    }
-
-    else if (clickCount === 3) {
-
-        clickPatternDisplay.textContent =
-            "Exploring";
-
     }
 
     else if (
-        clickCount >= 4 &&
-        clickCount <= 6
+        hesitationTime >=
+        HESITATION_THRESHOLD
     ) {
 
         clickPatternDisplay.textContent =
-            "Repeated interaction";
+            "Hesitant interaction";
+    }
 
+    else if (
+        hesitationTime <= 1
+    ) {
+
+        clickPatternDisplay.textContent =
+            "Rapid interaction";
+    }
+
+    else if (
+        clickCount >= 3 &&
+        clickCount <= 5
+    ) {
+
+        clickPatternDisplay.textContent =
+            "Exploring";
+    }
+
+    else if (
+        clickCount >= 6
+    ) {
+
+        clickPatternDisplay.textContent =
+            "High click activity";
     }
 
     else {
 
         clickPatternDisplay.textContent =
-            "High click activity";
+            "Normal interaction";
     }
+
 });
