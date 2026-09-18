@@ -1,5 +1,6 @@
 let clickCount = 0;
 
+
 // ===============================
 // SESSION TIMER
 // ===============================
@@ -37,6 +38,7 @@ let currentMouseVelocity = 0;
 // ===============================
 
 let interactionEvents = [];
+
 const MAX_LOG_EVENTS = 10;
 
 
@@ -115,6 +117,9 @@ const clickPatternDisplay =
 const statusDisplay =
     document.getElementById("status");
 
+const telemetryValidationDisplay =
+    document.getElementById("telemetryValidation");
+
 const interactionLogDisplay =
     document.getElementById("interactionLog");
 
@@ -132,6 +137,7 @@ function logInteractionEvent(
 
     const eventTime =
         new Date().toLocaleTimeString();
+
 
     const eventData = {
 
@@ -179,6 +185,7 @@ function logInteractionEvent(
         const listItem =
             document.createElement("li");
 
+
         listItem.textContent =
             "#" + event.eventNumber +
             " | " + event.time +
@@ -188,6 +195,7 @@ function logInteractionEvent(
             " | " + event.hesitationStatus +
             " | " + event.clickPattern;
 
+
         interactionLogDisplay.appendChild(
             listItem
         );
@@ -196,11 +204,81 @@ function logInteractionEvent(
 
 
 // ===============================
+// TELEMETRY VALIDATION
+// ===============================
+
+function validateTelemetry() {
+
+    // Check that telemetry values
+    // are not negative
+
+    const valuesAreNonNegative =
+        clickCount >= 0 &&
+        totalMouseDistance >= 0 &&
+        totalMouseTime >= 0 &&
+        maxMouseVelocity >= 0 &&
+        currentMouseVelocity >= 0;
+
+
+    // Assume average velocity is valid
+    let averageVelocityIsValid = true;
+
+
+    // Validate average velocity
+    // against distance / movement time
+
+    if (totalMouseTime > 0) {
+
+        const calculatedAverageVelocity =
+            totalMouseDistance /
+            totalMouseTime;
+
+
+        const displayedAverageVelocity =
+            parseFloat(
+                averageVelocityDisplay.textContent
+            );
+
+
+        const difference =
+            Math.abs(
+                calculatedAverageVelocity -
+                displayedAverageVelocity
+            );
+
+
+        // Allow small rounding difference
+        averageVelocityIsValid =
+            difference < 0.1;
+    }
+
+
+    // Final validation result
+
+    if (
+        valuesAreNonNegative &&
+        averageVelocityIsValid
+    ) {
+
+        telemetryValidationDisplay.textContent =
+            "Valid";
+    }
+
+    else {
+
+        telemetryValidationDisplay.textContent =
+            "Check required";
+    }
+}
+
+
+// ===============================
 // INITIAL DISPLAY
 // ===============================
 
 hesitationThresholdDisplay.textContent =
-    HESITATION_THRESHOLD + " seconds";
+    HESITATION_THRESHOLD +
+    " seconds";
 
 
 // ===============================
@@ -239,10 +317,12 @@ document.addEventListener(
         // --------------------------------
 
         const deltaX =
-            event.clientX - lastMouseX;
+            event.clientX -
+            lastMouseX;
 
         const deltaY =
-            event.clientY - lastMouseY;
+            event.clientY -
+            lastMouseY;
 
 
         const distance =
@@ -257,7 +337,10 @@ document.addEventListener(
         // --------------------------------
 
         const timeElapsed =
-            (currentTime - lastMouseTime) / 1000;
+            (
+                currentTime -
+                lastMouseTime
+            ) / 1000;
 
 
         // --------------------------------
@@ -270,7 +353,8 @@ document.addEventListener(
         ) {
 
             const velocity =
-                distance / timeElapsed;
+                distance /
+                timeElapsed;
 
 
             // --------------------------------
@@ -285,8 +369,10 @@ document.addEventListener(
                 currentMouseVelocity =
                     velocity;
 
+
                 totalMouseDistance +=
                     distance;
+
 
                 totalMouseTime +=
                     timeElapsed;
@@ -311,6 +397,7 @@ document.addEventListener(
                 // --------------------------------
 
                 let averageVelocity = 0;
+
 
                 if (
                     totalMouseTime > 0
@@ -423,6 +510,13 @@ document.addEventListener(
                 mouseMovementTimeDisplay.textContent =
                     totalMouseTime.toFixed(2) +
                     " seconds";
+
+
+                // --------------------------------
+                // Validate telemetry
+                // --------------------------------
+
+                validateTelemetry();
             }
         }
 
@@ -451,11 +545,13 @@ button.addEventListener(
     "click",
     function () {
 
+
         // --------------------------------
         // Increase click count
         // --------------------------------
 
         clickCount++;
+
 
         clickCountDisplay.textContent =
             clickCount;
@@ -483,8 +579,10 @@ button.addEventListener(
             // to first click
 
             hesitationTime =
-                (currentTime - startTime) /
-                1000;
+                (
+                    currentTime -
+                    startTime
+                ) / 1000;
         }
 
 
@@ -498,8 +596,10 @@ button.addEventListener(
             // to current click
 
             hesitationTime =
-                (currentTime - lastClickTime) /
-                1000;
+                (
+                    currentTime -
+                    lastClickTime
+                ) / 1000;
         }
 
 
@@ -532,6 +632,7 @@ button.addEventListener(
             hesitationStatusDisplay.textContent =
                 "Hesitation detected";
 
+
             statusDisplay.textContent =
                 "Hesitation detected";
         }
@@ -540,6 +641,7 @@ button.addEventListener(
 
             hesitationStatusDisplay.textContent =
                 "Quick interaction";
+
 
             statusDisplay.textContent =
                 "Quick interaction";
@@ -609,6 +711,13 @@ button.addEventListener(
             hesitationStatusDisplay.textContent,
             clickPatternDisplay.textContent
         );
+
+
+        // ===============================
+        // VALIDATE TELEMETRY
+        // ===============================
+
+        validateTelemetry();
 
     }
 );
