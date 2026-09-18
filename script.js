@@ -33,6 +33,14 @@ let currentMouseVelocity = 0;
 
 
 // ===============================
+// INTERACTION EVENT LOG
+// ===============================
+
+let interactionEvents = [];
+const MAX_LOG_EVENTS = 10;
+
+
+// ===============================
 // VELOCITY SETTINGS
 // ===============================
 
@@ -56,8 +64,7 @@ const HIGH_MOVEMENT_THRESHOLD = 3000;
 // VELOCITY ACTIVITY SETTINGS
 // ===============================
 
-// Velocity thresholds used to classify
-// current mouse movement speed
+// Velocity thresholds
 const SLOW_VELOCITY_THRESHOLD = 200;
 const FAST_VELOCITY_THRESHOLD = 1000;
 
@@ -108,6 +115,85 @@ const clickPatternDisplay =
 const statusDisplay =
     document.getElementById("status");
 
+const interactionLogDisplay =
+    document.getElementById("interactionLog");
+
+
+// ===============================
+// INTERACTION EVENT LOGGER
+// ===============================
+
+function logInteractionEvent(
+    clickNumber,
+    hesitationTime,
+    hesitationStatus,
+    clickPattern
+) {
+
+    const eventTime =
+        new Date().toLocaleTimeString();
+
+    const eventData = {
+
+        eventNumber:
+            interactionEvents.length + 1,
+
+        time:
+            eventTime,
+
+        clickNumber:
+            clickNumber,
+
+        hesitationTime:
+            hesitationTime.toFixed(2),
+
+        hesitationStatus:
+            hesitationStatus,
+
+        clickPattern:
+            clickPattern
+    };
+
+
+    // Add event to the log
+    interactionEvents.push(eventData);
+
+
+    // Keep only the latest 10 events
+    if (
+        interactionEvents.length >
+        MAX_LOG_EVENTS
+    ) {
+
+        interactionEvents.shift();
+    }
+
+
+    // Clear current display
+    interactionLogDisplay.innerHTML = "";
+
+
+    // Display recorded events
+    interactionEvents.forEach(function (event) {
+
+        const listItem =
+            document.createElement("li");
+
+        listItem.textContent =
+            "#" + event.eventNumber +
+            " | " + event.time +
+            " | Click " + event.clickNumber +
+            " | " + event.hesitationTime +
+            " sec" +
+            " | " + event.hesitationStatus +
+            " | " + event.clickPattern;
+
+        interactionLogDisplay.appendChild(
+            listItem
+        );
+    });
+}
+
 
 // ===============================
 // INITIAL DISPLAY
@@ -121,358 +207,408 @@ hesitationThresholdDisplay.textContent =
 // MOUSE MOVEMENT TRACKING
 // ===============================
 
-document.addEventListener("mousemove", function (event) {
+document.addEventListener(
+    "mousemove",
+    function (event) {
 
-    const currentTime = performance.now();
-
-
-    // --------------------------------
-    // First mouse movement
-    // --------------------------------
-
-    if (lastMouseX === null) {
-
-        lastMouseX = event.clientX;
-        lastMouseY = event.clientY;
-        lastMouseTime = currentTime;
-
-        return;
-    }
-
-
-    // --------------------------------
-    // Calculate mouse movement
-    // --------------------------------
-
-    const deltaX =
-        event.clientX - lastMouseX;
-
-    const deltaY =
-        event.clientY - lastMouseY;
-
-
-    const distance = Math.sqrt(
-        deltaX * deltaX +
-        deltaY * deltaY
-    );
-
-
-    // --------------------------------
-    // Calculate movement time
-    // --------------------------------
-
-    const timeElapsed =
-        (currentTime - lastMouseTime) / 1000;
-
-
-    // --------------------------------
-    // Validate time interval
-    // --------------------------------
-
-    if (timeElapsed >= MIN_TIME_INTERVAL) {
-
-        const velocity =
-            distance / timeElapsed;
+        const currentTime =
+            performance.now();
 
 
         // --------------------------------
-        // Accept realistic velocity only
+        // First mouse movement
         // --------------------------------
 
-        if (velocity <= MAX_VALID_VELOCITY) {
+        if (lastMouseX === null) {
 
-            currentMouseVelocity = velocity;
+            lastMouseX =
+                event.clientX;
 
-            totalMouseDistance += distance;
+            lastMouseY =
+                event.clientY;
 
-            totalMouseTime += timeElapsed;
+            lastMouseTime =
+                currentTime;
 
-
-            // --------------------------------
-            // Update maximum velocity
-            // --------------------------------
-
-            if (velocity > maxMouseVelocity) {
-
-                maxMouseVelocity = velocity;
-            }
-
-
-            // --------------------------------
-            // Calculate average velocity
-            // --------------------------------
-
-            let averageVelocity = 0;
-
-            if (totalMouseTime > 0) {
-
-                averageVelocity =
-                    totalMouseDistance /
-                    totalMouseTime;
-            }
-
-
-            // --------------------------------
-            // Update current velocity
-            // --------------------------------
-
-            velocityDisplay.textContent =
-                currentMouseVelocity.toFixed(2) +
-                " px/second";
-
-
-            // --------------------------------
-            // Classify current velocity
-            // --------------------------------
-
-            if (
-                currentMouseVelocity <
-                SLOW_VELOCITY_THRESHOLD
-            ) {
-
-                mouseVelocityActivityDisplay.textContent =
-                    "Slow movement";
-            }
-
-            else if (
-                currentMouseVelocity <
-                FAST_VELOCITY_THRESHOLD
-            ) {
-
-                mouseVelocityActivityDisplay.textContent =
-                    "Normal movement";
-            }
-
-            else {
-
-                mouseVelocityActivityDisplay.textContent =
-                    "Fast movement";
-            }
-
-
-            // --------------------------------
-            // Update average velocity
-            // --------------------------------
-
-            averageVelocityDisplay.textContent =
-                averageVelocity.toFixed(2) +
-                " px/second";
-
-
-            // --------------------------------
-            // Update maximum velocity
-            // --------------------------------
-
-            maxVelocityDisplay.textContent =
-                maxMouseVelocity.toFixed(2) +
-                " px/second";
-
-
-            // --------------------------------
-            // Update total mouse distance
-            // --------------------------------
-
-            mouseDistanceDisplay.textContent =
-                totalMouseDistance.toFixed(2) +
-                " px";
-
-
-            // --------------------------------
-            // Classify mouse movement activity
-            // --------------------------------
-
-            if (
-                totalMouseDistance <
-                LOW_MOVEMENT_THRESHOLD
-            ) {
-
-                mouseMovementActivityDisplay.textContent =
-                    "Low movement";
-            }
-
-            else if (
-                totalMouseDistance <
-                HIGH_MOVEMENT_THRESHOLD
-            ) {
-
-                mouseMovementActivityDisplay.textContent =
-                    "Moderate movement";
-            }
-
-            else {
-
-                mouseMovementActivityDisplay.textContent =
-                    "High movement";
-            }
-
-
-            // --------------------------------
-            // Update mouse movement time
-            // --------------------------------
-
-            mouseMovementTimeDisplay.textContent =
-                totalMouseTime.toFixed(2) +
-                " seconds";
+            return;
         }
+
+
+        // --------------------------------
+        // Calculate mouse movement
+        // --------------------------------
+
+        const deltaX =
+            event.clientX - lastMouseX;
+
+        const deltaY =
+            event.clientY - lastMouseY;
+
+
+        const distance =
+            Math.sqrt(
+                deltaX * deltaX +
+                deltaY * deltaY
+            );
+
+
+        // --------------------------------
+        // Calculate movement time
+        // --------------------------------
+
+        const timeElapsed =
+            (currentTime - lastMouseTime) / 1000;
+
+
+        // --------------------------------
+        // Validate time interval
+        // --------------------------------
+
+        if (
+            timeElapsed >=
+            MIN_TIME_INTERVAL
+        ) {
+
+            const velocity =
+                distance / timeElapsed;
+
+
+            // --------------------------------
+            // Accept realistic velocity only
+            // --------------------------------
+
+            if (
+                velocity <=
+                MAX_VALID_VELOCITY
+            ) {
+
+                currentMouseVelocity =
+                    velocity;
+
+                totalMouseDistance +=
+                    distance;
+
+                totalMouseTime +=
+                    timeElapsed;
+
+
+                // --------------------------------
+                // Update maximum velocity
+                // --------------------------------
+
+                if (
+                    velocity >
+                    maxMouseVelocity
+                ) {
+
+                    maxMouseVelocity =
+                        velocity;
+                }
+
+
+                // --------------------------------
+                // Calculate average velocity
+                // --------------------------------
+
+                let averageVelocity = 0;
+
+                if (
+                    totalMouseTime > 0
+                ) {
+
+                    averageVelocity =
+                        totalMouseDistance /
+                        totalMouseTime;
+                }
+
+
+                // --------------------------------
+                // Update current velocity
+                // --------------------------------
+
+                velocityDisplay.textContent =
+                    currentMouseVelocity.toFixed(2) +
+                    " px/second";
+
+
+                // --------------------------------
+                // Classify current velocity
+                // --------------------------------
+
+                if (
+                    currentMouseVelocity <
+                    SLOW_VELOCITY_THRESHOLD
+                ) {
+
+                    mouseVelocityActivityDisplay.textContent =
+                        "Slow movement";
+                }
+
+                else if (
+                    currentMouseVelocity <
+                    FAST_VELOCITY_THRESHOLD
+                ) {
+
+                    mouseVelocityActivityDisplay.textContent =
+                        "Normal movement";
+                }
+
+                else {
+
+                    mouseVelocityActivityDisplay.textContent =
+                        "Fast movement";
+                }
+
+
+                // --------------------------------
+                // Update average velocity
+                // --------------------------------
+
+                averageVelocityDisplay.textContent =
+                    averageVelocity.toFixed(2) +
+                    " px/second";
+
+
+                // --------------------------------
+                // Update maximum velocity
+                // --------------------------------
+
+                maxVelocityDisplay.textContent =
+                    maxMouseVelocity.toFixed(2) +
+                    " px/second";
+
+
+                // --------------------------------
+                // Update total mouse distance
+                // --------------------------------
+
+                mouseDistanceDisplay.textContent =
+                    totalMouseDistance.toFixed(2) +
+                    " px";
+
+
+                // --------------------------------
+                // Classify mouse movement activity
+                // --------------------------------
+
+                if (
+                    totalMouseDistance <
+                    LOW_MOVEMENT_THRESHOLD
+                ) {
+
+                    mouseMovementActivityDisplay.textContent =
+                        "Low movement";
+                }
+
+                else if (
+                    totalMouseDistance <
+                    HIGH_MOVEMENT_THRESHOLD
+                ) {
+
+                    mouseMovementActivityDisplay.textContent =
+                        "Moderate movement";
+                }
+
+                else {
+
+                    mouseMovementActivityDisplay.textContent =
+                        "High movement";
+                }
+
+
+                // --------------------------------
+                // Update mouse movement time
+                // --------------------------------
+
+                mouseMovementTimeDisplay.textContent =
+                    totalMouseTime.toFixed(2) +
+                    " seconds";
+            }
+        }
+
+
+        // --------------------------------
+        // Store current mouse position
+        // --------------------------------
+
+        lastMouseX =
+            event.clientX;
+
+        lastMouseY =
+            event.clientY;
+
+        lastMouseTime =
+            currentTime;
     }
-
-
-    // --------------------------------
-    // Store current mouse position
-    // --------------------------------
-
-    lastMouseX = event.clientX;
-    lastMouseY = event.clientY;
-    lastMouseTime = currentTime;
-
-});
+);
 
 
 // ===============================
 // BUTTON CLICK TRACKING
 // ===============================
 
-button.addEventListener("click", function () {
+button.addEventListener(
+    "click",
+    function () {
 
-    // --------------------------------
-    // Increase click count
-    // --------------------------------
+        // --------------------------------
+        // Increase click count
+        // --------------------------------
 
-    clickCount++;
+        clickCount++;
 
-    clickCountDisplay.textContent =
-        clickCount;
-
-
-    // --------------------------------
-    // Calculate hesitation time
-    // --------------------------------
-
-    const currentTime =
-        performance.now();
-
-    let hesitationTime;
+        clickCountDisplay.textContent =
+            clickCount;
 
 
-    // --------------------------------
-    // FIRST CLICK
-    // --------------------------------
+        // --------------------------------
+        // Calculate hesitation time
+        // --------------------------------
 
-    if (lastClickTime === null) {
+        const currentTime =
+            performance.now();
 
-        // Time from page opening
-        // to first click
+        let hesitationTime;
 
-        hesitationTime =
-            (currentTime - startTime) / 1000;
+
+        // --------------------------------
+        // FIRST CLICK
+        // --------------------------------
+
+        if (
+            lastClickTime === null
+        ) {
+
+            // Time from page opening
+            // to first click
+
+            hesitationTime =
+                (currentTime - startTime) /
+                1000;
+        }
+
+
+        // --------------------------------
+        // SUBSEQUENT CLICKS
+        // --------------------------------
+
+        else {
+
+            // Time from previous click
+            // to current click
+
+            hesitationTime =
+                (currentTime - lastClickTime) /
+                1000;
+        }
+
+
+        // --------------------------------
+        // Store current click time
+        // --------------------------------
+
+        lastClickTime =
+            currentTime;
+
+
+        // --------------------------------
+        // Display hesitation time
+        // --------------------------------
+
+        hesitationDisplay.textContent =
+            hesitationTime.toFixed(2) +
+            " seconds";
+
+
+        // ===============================
+        // HESITATION DETECTION
+        // ===============================
+
+        if (
+            hesitationTime >=
+            HESITATION_THRESHOLD
+        ) {
+
+            hesitationStatusDisplay.textContent =
+                "Hesitation detected";
+
+            statusDisplay.textContent =
+                "Hesitation detected";
+        }
+
+        else {
+
+            hesitationStatusDisplay.textContent =
+                "Quick interaction";
+
+            statusDisplay.textContent =
+                "Quick interaction";
+        }
+
+
+        // ===============================
+        // CLICK PATTERN DETECTION
+        // ===============================
+
+        if (
+            clickCount === 1
+        ) {
+
+            clickPatternDisplay.textContent =
+                "First click";
+        }
+
+        else if (
+            hesitationTime >=
+            HESITATION_THRESHOLD
+        ) {
+
+            clickPatternDisplay.textContent =
+                "Hesitant interaction";
+        }
+
+        else if (
+            hesitationTime <= 1
+        ) {
+
+            clickPatternDisplay.textContent =
+                "Rapid interaction";
+        }
+
+        else if (
+            clickCount >= 3 &&
+            clickCount <= 5
+        ) {
+
+            clickPatternDisplay.textContent =
+                "Exploring";
+        }
+
+        else if (
+            clickCount >= 6
+        ) {
+
+            clickPatternDisplay.textContent =
+                "High click activity";
+        }
+
+        else {
+
+            clickPatternDisplay.textContent =
+                "Normal interaction";
+        }
+
+
+        // ===============================
+        // LOG INTERACTION EVENT
+        // ===============================
+
+        logInteractionEvent(
+            clickCount,
+            hesitationTime,
+            hesitationStatusDisplay.textContent,
+            clickPatternDisplay.textContent
+        );
+
     }
-
-
-    // --------------------------------
-    // SUBSEQUENT CLICKS
-    // --------------------------------
-
-    else {
-
-        // Time from previous click
-        // to current click
-
-        hesitationTime =
-            (currentTime - lastClickTime) / 1000;
-    }
-
-
-    // --------------------------------
-    // Store current click time
-    // --------------------------------
-
-    lastClickTime =
-        currentTime;
-
-
-    // --------------------------------
-    // Display hesitation time
-    // --------------------------------
-
-    hesitationDisplay.textContent =
-        hesitationTime.toFixed(2) +
-        " seconds";
-
-
-    // ===============================
-    // HESITATION DETECTION
-    // ===============================
-
-    if (
-        hesitationTime >=
-        HESITATION_THRESHOLD
-    ) {
-
-        hesitationStatusDisplay.textContent =
-            "Hesitation detected";
-
-        statusDisplay.textContent =
-            "Hesitation detected";
-    }
-
-    else {
-
-        hesitationStatusDisplay.textContent =
-            "Quick interaction";
-
-        statusDisplay.textContent =
-            "Quick interaction";
-    }
-
-
-    // ===============================
-    // CLICK PATTERN DETECTION
-    // ===============================
-
-    if (clickCount === 1) {
-
-        clickPatternDisplay.textContent =
-            "First click";
-    }
-
-    else if (
-        hesitationTime >=
-        HESITATION_THRESHOLD
-    ) {
-
-        clickPatternDisplay.textContent =
-            "Hesitant interaction";
-    }
-
-    else if (
-        hesitationTime <= 1
-    ) {
-
-        clickPatternDisplay.textContent =
-            "Rapid interaction";
-    }
-
-    else if (
-        clickCount >= 3 &&
-        clickCount <= 5
-    ) {
-
-        clickPatternDisplay.textContent =
-            "Exploring";
-    }
-
-    else if (
-        clickCount >= 6
-    ) {
-
-        clickPatternDisplay.textContent =
-            "High click activity";
-    }
-
-    else {
-
-        clickPatternDisplay.textContent =
-            "Normal interaction";
-    }
-
-});
+);
