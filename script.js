@@ -1,3 +1,83 @@
+// ===============================
+// WEEK 2 - STRUCTURED SESSION TELEMETRY
+// ===============================
+
+const telemetrySession = {
+
+    sessionId:
+        "session-" +
+        Date.now(),
+
+    startedAt:
+        new Date().toISOString(),
+
+    metrics: {
+
+        clickCount: 0,
+
+        hesitationTime: 0,
+
+        hesitationStatus:
+            "Waiting",
+
+        mouseVelocity: 0,
+
+        averageMouseVelocity: 0,
+
+        maximumMouseVelocity: 0,
+
+        mouseDistance: 0,
+
+        mouseMovementTime: 0,
+
+        clickPattern:
+            "Waiting"
+    },
+
+    events: []
+};
+
+
+// ===============================
+// UPDATE STRUCTURED TELEMETRY
+// ===============================
+
+function updateTelemetrySession() {
+
+    telemetrySession.metrics.clickCount =
+        clickCount;
+
+    telemetrySession.metrics.mouseVelocity =
+        currentMouseVelocity;
+
+    telemetrySession.metrics.averageMouseVelocity =
+        totalMouseTime > 0
+            ? totalMouseDistance / totalMouseTime
+            : 0;
+
+    telemetrySession.metrics.maximumMouseVelocity =
+        maxMouseVelocity;
+
+    telemetrySession.metrics.mouseDistance =
+        totalMouseDistance;
+
+    telemetrySession.metrics.mouseMovementTime =
+        totalMouseTime;
+}
+
+
+// ===============================
+// TELEMETRY ACCESS FOR TESTING
+// ===============================
+
+window.getAuraGenTelemetry = function () {
+
+    return JSON.parse(
+        JSON.stringify(telemetrySession)
+    );
+};
+
+
 let clickCount = 0;
 
 
@@ -513,6 +593,13 @@ document.addEventListener(
 
 
                 // --------------------------------
+                // Update structured session telemetry
+                // --------------------------------
+
+                updateTelemetrySession();
+
+
+                // --------------------------------
                 // Validate telemetry
                 // --------------------------------
 
@@ -711,6 +798,53 @@ button.addEventListener(
             hesitationStatusDisplay.textContent,
             clickPatternDisplay.textContent
         );
+
+
+        // ===============================
+        // UPDATE STRUCTURED SESSION TELEMETRY
+        // ===============================
+
+        telemetrySession.metrics.hesitationTime =
+            hesitationTime;
+
+        telemetrySession.metrics.hesitationStatus =
+            hesitationStatusDisplay.textContent;
+
+        telemetrySession.metrics.clickPattern =
+            clickPatternDisplay.textContent;
+
+        updateTelemetrySession();
+
+
+        // ===============================
+        // STORE STRUCTURED CLICK EVENT
+        // ===============================
+
+        telemetrySession.events.push({
+
+            eventNumber:
+                telemetrySession.events.length + 1,
+
+            eventType:
+                "click",
+
+            timestamp:
+                new Date().toISOString(),
+
+            clickNumber:
+                clickCount,
+
+            hesitationTime:
+                Number(
+                    hesitationTime.toFixed(2)
+                ),
+
+            hesitationStatus:
+                hesitationStatusDisplay.textContent,
+
+            clickPattern:
+                clickPatternDisplay.textContent
+        });
 
 
         // ===============================
