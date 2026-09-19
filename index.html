@@ -2,13 +2,24 @@
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>AuraGen - Click & Hesitation Detection</title>
+
 </head>
 
+
 <body>
+
+    <!-- =====================================================
+         AURAGEN HEADER
+         ===================================================== -->
 
     <h1>AuraGen</h1>
 
@@ -19,119 +30,225 @@
         hesitation, and mouse behavior during interaction.
     </p>
 
-    <button id="testButton">Click Me</button>
+
+    <!-- =====================================================
+         INTERACTION CONTROLS
+         ===================================================== -->
+
+    <button
+        id="testButton"
+        type="button"
+    >
+        Click Me
+    </button>
 
 
-    <!-- ===============================
+    <button
+        id="resetTelemetryButton"
+        type="button"
+    >
+        Reset Telemetry Session
+    </button>
+
+
+    <!-- =====================================================
          INTERACTION METRICS
-         =============================== -->
+         ===================================================== -->
 
     <h2>Interaction Metrics</h2>
 
+
     <p>
         Click Count:
-        <span id="clickCount">0</span>
+        <span
+            id="clickCount"
+            aria-live="polite"
+        >
+            0
+        </span>
     </p>
+
 
     <p>
         Hesitation Time:
-        <span id="hesitationTime">--</span>
+        <span
+            id="hesitationTime"
+            aria-live="polite"
+        >
+            --
+        </span>
     </p>
+
 
     <p>
         Hesitation Threshold:
-        <span id="hesitationThreshold">3 seconds</span>
+        <span id="hesitationThreshold">
+            3 seconds
+        </span>
     </p>
+
 
     <p>
         Hesitation Status:
-        <span id="hesitationStatus">Waiting</span>
+        <span
+            id="hesitationStatus"
+            aria-live="polite"
+        >
+            Waiting
+        </span>
     </p>
 
 
-    <!-- ===============================
+    <!-- =====================================================
          MOUSE TELEMETRY
-         =============================== -->
+         ===================================================== -->
 
     <h2>Mouse Telemetry</h2>
 
+
     <p>
         Mouse Velocity:
-        <span id="mouseVelocity">0</span>
+        <span
+            id="mouseVelocity"
+            aria-live="polite"
+        >
+            0
+        </span>
     </p>
+
 
     <p>
         Mouse Velocity Activity:
-        <span id="mouseVelocityActivity">Waiting</span>
+        <span
+            id="mouseVelocityActivity"
+            aria-live="polite"
+        >
+            Waiting
+        </span>
     </p>
+
 
     <p>
         Average Mouse Velocity:
-        <span id="averageVelocity">0</span>
+        <span
+            id="averageVelocity"
+            aria-live="polite"
+        >
+            0
+        </span>
     </p>
+
 
     <p>
         Maximum Mouse Velocity:
-        <span id="maxVelocity">0</span>
+        <span
+            id="maxVelocity"
+            aria-live="polite"
+        >
+            0
+        </span>
     </p>
+
 
     <p>
         Mouse Distance:
-        <span id="mouseDistance">0</span>
+        <span
+            id="mouseDistance"
+            aria-live="polite"
+        >
+            0
+        </span>
     </p>
+
 
     <p>
         Mouse Movement Activity:
-        <span id="mouseMovementActivity">Waiting</span>
+        <span
+            id="mouseMovementActivity"
+            aria-live="polite"
+        >
+            Waiting
+        </span>
     </p>
+
 
     <p>
         Mouse Movement Time:
-        <span id="mouseMovementTime">0</span>
+        <span
+            id="mouseMovementTime"
+            aria-live="polite"
+        >
+            0
+        </span>
     </p>
 
 
-    <!-- ===============================
+    <!-- =====================================================
          INTERACTION PATTERN
-         =============================== -->
+         ===================================================== -->
 
     <h2>Interaction Pattern</h2>
 
+
     <p>
         Click Pattern:
-        <span id="clickPattern">Waiting</span>
+        <span
+            id="clickPattern"
+            aria-live="polite"
+        >
+            Waiting
+        </span>
     </p>
+
 
     <p>
         Status:
-        <span id="status">Waiting for interaction</span>
+        <span
+            id="status"
+            aria-live="polite"
+        >
+            Waiting for interaction
+        </span>
     </p>
 
 
-    <!-- ===============================
+    <!-- =====================================================
          TELEMETRY VALIDATION
-         =============================== -->
+         ===================================================== -->
 
     <p>
         Telemetry Validation:
-        <span id="telemetryValidation">Waiting</span>
+        <span
+            id="telemetryValidation"
+            aria-live="polite"
+        >
+            Waiting
+        </span>
     </p>
 
 
-    <!-- ===============================
+    <!-- =====================================================
          INTERACTION EVENT LOG
-         =============================== -->
+         ===================================================== -->
 
     <h2>Interaction Event Log</h2>
 
+
     <ul id="interactionLog">
-        <li>Waiting for interaction events...</li>
+
+        <li>
+            Waiting for interaction events...
+        </li>
+
     </ul>
 
 
-    <!-- JavaScript -->
+    <!-- =====================================================
+         JAVASCRIPT
+         ===================================================== -->
 
     <script src="script.js"></script>
+
 
 </body>
 

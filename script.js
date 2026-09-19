@@ -1,6 +1,12 @@
-// ===============================
+// ============================================================
+// AuraGen - Click & Hesitation Detection
+// Week 2 - Structured Session Telemetry
+// ============================================================
+
+
+// ============================================================
 // WEEK 2 - STRUCTURED SESSION TELEMETRY
-// ===============================
+// ============================================================
 
 const telemetrySession = {
 
@@ -38,9 +44,9 @@ const telemetrySession = {
 };
 
 
-// ===============================
+// ============================================================
 // UPDATE STRUCTURED TELEMETRY
-// ===============================
+// ============================================================
 
 function updateTelemetrySession() {
 
@@ -66,9 +72,9 @@ function updateTelemetrySession() {
 }
 
 
-// ===============================
+// ============================================================
 // TELEMETRY ACCESS FOR TESTING
-// ===============================
+// ============================================================
 
 window.getAuraGenTelemetry = function () {
 
@@ -78,11 +84,221 @@ window.getAuraGenTelemetry = function () {
 };
 
 
-// ===============================
-// WEEK 2 - CODE SAFETY VALIDATION
-// ===============================
+// ============================================================
+// WEEK 2 - TELEMETRY SESSION RESET
+// ============================================================
 
+const resetTelemetryButton =
+    document.getElementById(
+        "resetTelemetryButton"
+    );
+
+
+// ============================================================
+// RESET TELEMETRY SESSION
+// ============================================================
+
+function resetTelemetrySession() {
+
+    // --------------------------------------------------------
+    // Create a new session
+    // --------------------------------------------------------
+
+    telemetrySession.sessionId =
+        "session-" +
+        Date.now();
+
+    telemetrySession.startedAt =
+        new Date().toISOString();
+
+
+    // --------------------------------------------------------
+    // Reset telemetry metrics
+    // --------------------------------------------------------
+
+    telemetrySession.metrics.clickCount =
+        0;
+
+    telemetrySession.metrics.hesitationTime =
+        0;
+
+    telemetrySession.metrics.hesitationStatus =
+        "Waiting";
+
+    telemetrySession.metrics.mouseVelocity =
+        0;
+
+    telemetrySession.metrics.averageMouseVelocity =
+        0;
+
+    telemetrySession.metrics.maximumMouseVelocity =
+        0;
+
+    telemetrySession.metrics.mouseDistance =
+        0;
+
+    telemetrySession.metrics.mouseMovementTime =
+        0;
+
+    telemetrySession.metrics.clickPattern =
+        "Waiting";
+
+
+    // --------------------------------------------------------
+    // Clear structured events
+    // --------------------------------------------------------
+
+    telemetrySession.events = [];
+
+
+    // --------------------------------------------------------
+    // Reset application counters
+    // --------------------------------------------------------
+
+    clickCount = 0;
+
+    totalMouseDistance = 0;
+
+    totalMouseTime = 0;
+
+    currentMouseVelocity = 0;
+
+    maxMouseVelocity = 0;
+
+
+    // --------------------------------------------------------
+    // Reset mouse tracking state
+    // --------------------------------------------------------
+
+    lastMouseX = null;
+
+    lastMouseY = null;
+
+    lastMouseTime = null;
+
+
+    // --------------------------------------------------------
+    // Reset session timer
+    // --------------------------------------------------------
+
+    startTime =
+        performance.now();
+
+
+    // --------------------------------------------------------
+    // Reset hesitation timing
+    // --------------------------------------------------------
+
+    lastClickTime = null;
+
+    hesitationTime = 0;
+
+
+    // --------------------------------------------------------
+    // Reset interaction event history
+    // --------------------------------------------------------
+
+    interactionEvents = [];
+
+
+    // --------------------------------------------------------
+    // Reset displayed values
+    // --------------------------------------------------------
+
+    clickCountDisplay.textContent =
+        "0";
+
+    hesitationDisplay.textContent =
+        "--";
+
+    hesitationStatusDisplay.textContent =
+        "Waiting";
+
+    statusDisplay.textContent =
+        "Waiting for interaction";
+
+    clickPatternDisplay.textContent =
+        "Waiting";
+
+
+    // --------------------------------------------------------
+    // Reset mouse telemetry display
+    // --------------------------------------------------------
+
+    velocityDisplay.textContent =
+        "0.00 px/second";
+
+    mouseVelocityActivityDisplay.textContent =
+        "Waiting";
+
+    averageVelocityDisplay.textContent =
+        "0.00 px/second";
+
+    maxVelocityDisplay.textContent =
+        "0.00 px/second";
+
+    mouseDistanceDisplay.textContent =
+        "0.00 px";
+
+    mouseMovementActivityDisplay.textContent =
+        "Waiting";
+
+    mouseMovementTimeDisplay.textContent =
+        "0.00 seconds";
+
+
+    // --------------------------------------------------------
+    // Clear interaction event log
+    // --------------------------------------------------------
+
+    interactionLogDisplay.innerHTML = "";
+
+
+    // --------------------------------------------------------
+    // Reset telemetry validation
+    // --------------------------------------------------------
+
+    telemetryValidationDisplay.textContent =
+        "Waiting";
+
+
+    // --------------------------------------------------------
+    // Update structured telemetry
+    // --------------------------------------------------------
+
+    updateTelemetrySession();
+
+
+    // --------------------------------------------------------
+    // Console confirmation
+    // --------------------------------------------------------
+
+    console.log(
+        "AuraGen telemetry session reset:",
+        telemetrySession.sessionId
+    );
+}
+
+
+// ============================================================
+// RESET BUTTON EVENT
+// ============================================================
+
+resetTelemetryButton.addEventListener(
+    "click",
+    resetTelemetrySession
+);
+
+
+// ============================================================
+// WEEK 2 - CODE SAFETY VALIDATION
+// ============================================================
+
+
+// ------------------------------------------------------------
 // Allowed hesitation status values
+// ------------------------------------------------------------
+
 const ALLOWED_HESITATION_STATUSES = [
 
     "Waiting",
@@ -93,7 +309,10 @@ const ALLOWED_HESITATION_STATUSES = [
 ];
 
 
+// ------------------------------------------------------------
 // Allowed click pattern values
+// ------------------------------------------------------------
+
 const ALLOWED_CLICK_PATTERNS = [
 
     "Waiting",
@@ -112,9 +331,9 @@ const ALLOWED_CLICK_PATTERNS = [
 ];
 
 
-// ===============================
+// ============================================================
 // SAFE NUMBER VALIDATION
-// ===============================
+// ============================================================
 
 function isSafeTelemetryNumber(value) {
 
@@ -129,9 +348,9 @@ function isSafeTelemetryNumber(value) {
 }
 
 
-// ===============================
+// ============================================================
 // SAFE TEXT VALIDATION
-// ===============================
+// ============================================================
 
 function isSafeTelemetryText(
     value,
@@ -149,9 +368,9 @@ function isSafeTelemetryText(
 }
 
 
-// ===============================
+// ============================================================
 // VALIDATE TELEMETRY METRICS
-// ===============================
+// ============================================================
 
 function validateTelemetryMetrics() {
 
@@ -214,9 +433,9 @@ function validateTelemetryMetrics() {
 }
 
 
-// ===============================
+// ============================================================
 // VALIDATE ONE TELEMETRY EVENT
-// ===============================
+// ============================================================
 
 function validateTelemetryEvent(event) {
 
@@ -281,13 +500,16 @@ function validateTelemetryEvent(event) {
 }
 
 
-// ===============================
+// ============================================================
 // VALIDATE COMPLETE SESSION
-// ===============================
+// ============================================================
 
 function validateTelemetrySession() {
 
+    // --------------------------------------------------------
     // Session object
+    // --------------------------------------------------------
+
     if (
 
         typeof telemetrySession !== "object" ||
@@ -299,7 +521,10 @@ function validateTelemetrySession() {
     }
 
 
+    // --------------------------------------------------------
     // Session ID
+    // --------------------------------------------------------
+
     if (
 
         typeof telemetrySession.sessionId !== "string" ||
@@ -315,7 +540,10 @@ function validateTelemetrySession() {
     }
 
 
+    // --------------------------------------------------------
     // Start time
+    // --------------------------------------------------------
+
     if (
 
         typeof telemetrySession.startedAt !== "string" ||
@@ -327,7 +555,10 @@ function validateTelemetrySession() {
     }
 
 
+    // --------------------------------------------------------
     // Metrics
+    // --------------------------------------------------------
+
     if (
         !validateTelemetryMetrics()
     ) {
@@ -336,8 +567,12 @@ function validateTelemetrySession() {
     }
 
 
+    // --------------------------------------------------------
     // Events must be an array
+    // --------------------------------------------------------
+
     if (
+
         !Array.isArray(
             telemetrySession.events
         )
@@ -347,7 +582,10 @@ function validateTelemetrySession() {
     }
 
 
+    // --------------------------------------------------------
     // Maximum event limit
+    // --------------------------------------------------------
+
     if (
 
         telemetrySession.events.length >
@@ -358,16 +596,19 @@ function validateTelemetrySession() {
     }
 
 
+    // --------------------------------------------------------
     // Validate every event
+    // --------------------------------------------------------
+
     return telemetrySession.events.every(
         validateTelemetryEvent
     );
 }
 
 
-// ===============================
+// ============================================================
 // SAFE STRUCTURED EVENT STORAGE
-// ===============================
+// ============================================================
 
 function storeStructuredClickEvent(
     hesitationTime
@@ -400,7 +641,10 @@ function storeStructuredClickEvent(
     };
 
 
+    // --------------------------------------------------------
     // Store only validated events
+    // --------------------------------------------------------
+
     if (
         validateTelemetryEvent(event)
     ) {
@@ -410,7 +654,10 @@ function storeStructuredClickEvent(
         );
 
 
-        // Keep latest 10 events
+        // ----------------------------------------------------
+        // Keep latest 10 structured events
+        // ----------------------------------------------------
+
         if (
 
             telemetrySession.events.length >
@@ -423,9 +670,9 @@ function storeStructuredClickEvent(
 }
 
 
-// ===============================
+// ============================================================
 // UPDATE SAFETY STATUS
-// ===============================
+// ============================================================
 
 function updateTelemetrySafetyStatus() {
 
@@ -448,35 +695,38 @@ function updateTelemetrySafetyStatus() {
 }
 
 
-// ===============================
+// ============================================================
 // CLICK COUNT
-// ===============================
+// ============================================================
 
 let clickCount = 0;
 
 
-// ===============================
+// ============================================================
 // SESSION TIMER
-// ===============================
+// ============================================================
 
-const startTime =
+let startTime =
     performance.now();
 
 
-// Stores the time of the previous click
+// ============================================================
+// STORES THE TIME OF THE PREVIOUS CLICK
+// ============================================================
+
 let lastClickTime = null;
 
 
-// ===============================
+// ============================================================
 // HESITATION SETTINGS
-// ===============================
+// ============================================================
 
 const HESITATION_THRESHOLD = 3;
 
 
-// ===============================
+// ============================================================
 // MOUSE TRACKING VARIABLES
-// ===============================
+// ============================================================
 
 let lastMouseX = null;
 
@@ -493,123 +743,140 @@ let maxMouseVelocity = 0;
 let currentMouseVelocity = 0;
 
 
-// ===============================
+// ============================================================
 // INTERACTION EVENT LOG
-// ===============================
+// ============================================================
 
 let interactionEvents = [];
 
 const MAX_LOG_EVENTS = 10;
 
 
-// ===============================
+// ============================================================
 // VELOCITY SETTINGS
-// ===============================
+// ============================================================
 
 // Ignore extremely small time intervals
+
 const MIN_TIME_INTERVAL = 0.01;
 
 
 // Maximum velocity accepted
+
 const MAX_VALID_VELOCITY = 3000;
 
 
-// ===============================
+// ============================================================
 // MOUSE ACTIVITY SETTINGS
-// ===============================
+// ============================================================
 
 const LOW_MOVEMENT_THRESHOLD = 1000;
 
 const HIGH_MOVEMENT_THRESHOLD = 3000;
 
 
-// ===============================
+// ============================================================
 // VELOCITY ACTIVITY SETTINGS
-// ===============================
+// ============================================================
 
 const SLOW_VELOCITY_THRESHOLD = 200;
 
 const FAST_VELOCITY_THRESHOLD = 1000;
 
 
-// ===============================
+// ============================================================
 // HTML ELEMENTS
-// ===============================
+// ============================================================
 
 const button =
     document.getElementById(
         "testButton"
     );
 
+
 const clickCountDisplay =
     document.getElementById(
         "clickCount"
     );
+
 
 const hesitationDisplay =
     document.getElementById(
         "hesitationTime"
     );
 
+
 const hesitationThresholdDisplay =
     document.getElementById(
         "hesitationThreshold"
     );
+
 
 const hesitationStatusDisplay =
     document.getElementById(
         "hesitationStatus"
     );
 
+
 const velocityDisplay =
     document.getElementById(
         "mouseVelocity"
     );
+
 
 const mouseVelocityActivityDisplay =
     document.getElementById(
         "mouseVelocityActivity"
     );
 
+
 const averageVelocityDisplay =
     document.getElementById(
         "averageVelocity"
     );
+
 
 const maxVelocityDisplay =
     document.getElementById(
         "maxVelocity"
     );
 
+
 const mouseDistanceDisplay =
     document.getElementById(
         "mouseDistance"
     );
+
 
 const mouseMovementActivityDisplay =
     document.getElementById(
         "mouseMovementActivity"
     );
 
+
 const mouseMovementTimeDisplay =
     document.getElementById(
         "mouseMovementTime"
     );
+
 
 const clickPatternDisplay =
     document.getElementById(
         "clickPattern"
     );
 
+
 const statusDisplay =
     document.getElementById(
         "status"
     );
 
+
 const telemetryValidationDisplay =
     document.getElementById(
         "telemetryValidation"
     );
+
 
 const interactionLogDisplay =
     document.getElementById(
@@ -617,9 +884,9 @@ const interactionLogDisplay =
     );
 
 
-// ===============================
+// ============================================================
 // INTERACTION EVENT LOGGER
-// ===============================
+// ============================================================
 
 function logInteractionEvent(
 
@@ -659,13 +926,19 @@ function logInteractionEvent(
     };
 
 
+    // --------------------------------------------------------
     // Add event
+    // --------------------------------------------------------
+
     interactionEvents.push(
         eventData
     );
 
 
+    // --------------------------------------------------------
     // Keep latest 10 events
+    // --------------------------------------------------------
+
     if (
 
         interactionEvents.length >
@@ -676,12 +949,18 @@ function logInteractionEvent(
     }
 
 
+    // --------------------------------------------------------
     // Clear display
+    // --------------------------------------------------------
+
     interactionLogDisplay.innerHTML =
         "";
 
 
+    // --------------------------------------------------------
     // Display events
+    // --------------------------------------------------------
+
     interactionEvents.forEach(
         function (event) {
 
@@ -722,15 +1001,15 @@ function logInteractionEvent(
 }
 
 
-// ===============================
+// ============================================================
 // TELEMETRY VALIDATION
-// ===============================
+// ============================================================
 
 function validateTelemetry() {
 
-    // -------------------------------
+    // --------------------------------------------------------
     // Basic numeric validation
-    // -------------------------------
+    // --------------------------------------------------------
 
     const valuesAreNonNegative =
 
@@ -745,9 +1024,9 @@ function validateTelemetry() {
         currentMouseVelocity >= 0;
 
 
-    // -------------------------------
+    // --------------------------------------------------------
     // Average velocity validation
-    // -------------------------------
+    // --------------------------------------------------------
 
     let averageVelocityIsValid =
         true;
@@ -780,23 +1059,24 @@ function validateTelemetry() {
             );
 
 
-        // Allow rounding difference
+        // Allow small rounding difference
+
         averageVelocityIsValid =
             difference < 0.1;
     }
 
 
-    // -------------------------------
+    // --------------------------------------------------------
     // Session safety validation
-    // -------------------------------
+    // --------------------------------------------------------
 
     const sessionIsSafe =
         updateTelemetrySafetyStatus();
 
 
-    // -------------------------------
+    // --------------------------------------------------------
     // Final result
-    // -------------------------------
+    // --------------------------------------------------------
 
     if (
 
@@ -822,9 +1102,9 @@ function validateTelemetry() {
 }
 
 
-// ===============================
+// ============================================================
 // INITIAL DISPLAY
-// ===============================
+// ============================================================
 
 hesitationThresholdDisplay.textContent =
 
@@ -832,9 +1112,9 @@ hesitationThresholdDisplay.textContent =
     " seconds";
 
 
-// ===============================
+// ============================================================
 // MOUSE MOVEMENT TRACKING
-// ===============================
+// ============================================================
 
 document.addEventListener(
 
@@ -846,9 +1126,9 @@ document.addEventListener(
             performance.now();
 
 
-        // -------------------------------
+        // ----------------------------------------------------
         // First mouse movement
-        // -------------------------------
+        // ----------------------------------------------------
 
         if (
             lastMouseX === null
@@ -867,9 +1147,9 @@ document.addEventListener(
         }
 
 
-        // -------------------------------
+        // ----------------------------------------------------
         // Calculate movement
-        // -------------------------------
+        // ----------------------------------------------------
 
         const deltaX =
 
@@ -892,9 +1172,9 @@ document.addEventListener(
             );
 
 
-        // -------------------------------
+        // ----------------------------------------------------
         // Calculate movement time
-        // -------------------------------
+        // ----------------------------------------------------
 
         const timeElapsed =
 
@@ -904,9 +1184,9 @@ document.addEventListener(
             ) / 1000;
 
 
-        // -------------------------------
+        // ----------------------------------------------------
         // Validate time interval
-        // -------------------------------
+        // ----------------------------------------------------
 
         if (
 
@@ -921,9 +1201,9 @@ document.addEventListener(
                 timeElapsed;
 
 
-            // -------------------------------
+            // ------------------------------------------------
             // Accept realistic velocity
-            // -------------------------------
+            // ------------------------------------------------
 
             if (
 
@@ -944,9 +1224,9 @@ document.addEventListener(
                     timeElapsed;
 
 
-                // -------------------------------
+                // ------------------------------------------------
                 // Maximum velocity
-                // -------------------------------
+                // ------------------------------------------------
 
                 if (
 
@@ -960,9 +1240,9 @@ document.addEventListener(
                 }
 
 
-                // -------------------------------
+                // ------------------------------------------------
                 // Average velocity
-                // -------------------------------
+                // ------------------------------------------------
 
                 let averageVelocity = 0;
 
@@ -978,9 +1258,9 @@ document.addEventListener(
                 }
 
 
-                // -------------------------------
+                // ------------------------------------------------
                 // Current velocity display
-                // -------------------------------
+                // ------------------------------------------------
 
                 velocityDisplay.textContent =
 
@@ -988,9 +1268,9 @@ document.addEventListener(
                     " px/second";
 
 
-                // -------------------------------
+                // ------------------------------------------------
                 // Velocity classification
-                // -------------------------------
+                // ------------------------------------------------
 
                 if (
 
@@ -1024,9 +1304,9 @@ document.addEventListener(
                 }
 
 
-                // -------------------------------
+                // ------------------------------------------------
                 // Average velocity display
-                // -------------------------------
+                // ------------------------------------------------
 
                 averageVelocityDisplay.textContent =
 
@@ -1034,9 +1314,9 @@ document.addEventListener(
                     " px/second";
 
 
-                // -------------------------------
+                // ------------------------------------------------
                 // Maximum velocity display
-                // -------------------------------
+                // ------------------------------------------------
 
                 maxVelocityDisplay.textContent =
 
@@ -1044,9 +1324,9 @@ document.addEventListener(
                     " px/second";
 
 
-                // -------------------------------
+                // ------------------------------------------------
                 // Mouse distance display
-                // -------------------------------
+                // ------------------------------------------------
 
                 mouseDistanceDisplay.textContent =
 
@@ -1054,9 +1334,9 @@ document.addEventListener(
                     " px";
 
 
-                // -------------------------------
+                // ------------------------------------------------
                 // Mouse movement classification
-                // -------------------------------
+                // ------------------------------------------------
 
                 if (
 
@@ -1090,9 +1370,9 @@ document.addEventListener(
                 }
 
 
-                // -------------------------------
+                // ------------------------------------------------
                 // Mouse movement time
-                // -------------------------------
+                // ------------------------------------------------
 
                 mouseMovementTimeDisplay.textContent =
 
@@ -1100,25 +1380,25 @@ document.addEventListener(
                     " seconds";
 
 
-                // -------------------------------
+                // ------------------------------------------------
                 // Update structured telemetry
-                // -------------------------------
+                // ------------------------------------------------
 
                 updateTelemetrySession();
 
 
-                // -------------------------------
+                // ------------------------------------------------
                 // Validate telemetry
-                // -------------------------------
+                // ------------------------------------------------
 
                 validateTelemetry();
             }
         }
 
 
-        // -------------------------------
+        // ----------------------------------------------------
         // Store current mouse position
-        // -------------------------------
+        // ----------------------------------------------------
 
         lastMouseX =
             event.clientX;
@@ -1132,9 +1412,9 @@ document.addEventListener(
 );
 
 
-// ===============================
+// ============================================================
 // BUTTON CLICK TRACKING
-// ===============================
+// ============================================================
 
 button.addEventListener(
 
@@ -1143,9 +1423,9 @@ button.addEventListener(
     function () {
 
 
-        // -------------------------------
+        // ----------------------------------------------------
         // Increase click count
-        // -------------------------------
+        // ----------------------------------------------------
 
         clickCount++;
 
@@ -1154,9 +1434,9 @@ button.addEventListener(
             clickCount;
 
 
-        // -------------------------------
+        // ----------------------------------------------------
         // Calculate hesitation time
-        // -------------------------------
+        // ----------------------------------------------------
 
         const currentTime =
             performance.now();
@@ -1165,9 +1445,9 @@ button.addEventListener(
         let hesitationTime;
 
 
-        // -------------------------------
+        // ----------------------------------------------------
         // First click
-        // -------------------------------
+        // ----------------------------------------------------
 
         if (
             lastClickTime === null
@@ -1182,9 +1462,9 @@ button.addEventListener(
         }
 
 
-        // -------------------------------
+        // ----------------------------------------------------
         // Subsequent clicks
-        // -------------------------------
+        // ----------------------------------------------------
 
         else {
 
@@ -1197,17 +1477,17 @@ button.addEventListener(
         }
 
 
-        // -------------------------------
+        // ----------------------------------------------------
         // Store click time
-        // -------------------------------
+        // ----------------------------------------------------
 
         lastClickTime =
             currentTime;
 
 
-        // -------------------------------
+        // ----------------------------------------------------
         // Display hesitation
-        // -------------------------------
+        // ----------------------------------------------------
 
         hesitationDisplay.textContent =
 
@@ -1215,9 +1495,9 @@ button.addEventListener(
             " seconds";
 
 
-        // ===============================
+        // ====================================================
         // HESITATION DETECTION
-        // ===============================
+        // ====================================================
 
         if (
 
@@ -1249,9 +1529,9 @@ button.addEventListener(
         }
 
 
-        // ===============================
+        // ====================================================
         // CLICK PATTERN DETECTION
-        // ===============================
+        // ====================================================
 
         if (
             clickCount === 1
@@ -1317,9 +1597,9 @@ button.addEventListener(
         }
 
 
-        // ===============================
+        // ====================================================
         // LOG INTERACTION EVENT
-        // ===============================
+        // ====================================================
 
         logInteractionEvent(
 
@@ -1335,9 +1615,9 @@ button.addEventListener(
         );
 
 
-        // ===============================
+        // ====================================================
         // UPDATE STRUCTURED TELEMETRY
-        // ===============================
+        // ====================================================
 
         telemetrySession.metrics.hesitationTime =
 
@@ -1359,9 +1639,9 @@ button.addEventListener(
         updateTelemetrySession();
 
 
-        // ===============================
+        // ====================================================
         // STORE STRUCTURED CLICK EVENT
-        // ===============================
+        // ====================================================
 
         storeStructuredClickEvent(
 
@@ -1369,11 +1649,25 @@ button.addEventListener(
         );
 
 
-        // ===============================
+        // ====================================================
         // VALIDATE TELEMETRY
-        // ===============================
+        // ====================================================
 
         validateTelemetry();
 
     }
 );
+
+
+// ============================================================
+// INITIAL STRUCTURED TELEMETRY UPDATE
+// ============================================================
+
+updateTelemetrySession();
+
+
+// ============================================================
+// INITIAL TELEMETRY VALIDATION
+// ============================================================
+
+validateTelemetry();
