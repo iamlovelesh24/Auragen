@@ -140,12 +140,30 @@ def generate_component(
     max_retries=2,
 ):
     """
-    Generate a component for a given friction context.
+    Generate a simplified React (.tsx) replacement component for a UI field
+    that a user is struggling with, based on detected friction signals.
+
+    Args:
+        cognitive_load_score (int|float): Friction Engine's score (0-100)
+            for how much difficulty the user is having with this field.
+        field_name (str): Human-readable name of the field/section, e.g.
+            "Annual Income" or "Country".
+        signal_summary (str): Short description of the telemetry signals
+            that triggered this, e.g. "3 rage clicks, 4s hesitation".
+        original_field_type (str): Description of the current UI element
+            being replaced.
+        max_retries (int): Retry attempts on transient LLM failures.
+            Default 2 (3 total attempts).
+
+    Returns:
+        str: Clean TSX source code, fence stripped, guaranteed to contain
+            'export default'.
 
     Raises:
         ConfigurationError, InvalidInputError, GenerationError,
         EmptyOutputError, MalformedComponentError
     """
+
     _check_env()
     _validate_inputs(cognitive_load_score, field_name, signal_summary, original_field_type)
 
