@@ -1,6 +1,6 @@
 // ============================================================
 // AuraGen - Click & Hesitation Detection
-// Week 2 - Structured Session Telemetry
+// Week 2 - Structured Telemetry + Dynamic UI Rendering
 // ============================================================
 
 
@@ -251,7 +251,8 @@ function resetTelemetrySession() {
     // Clear interaction event log
     // --------------------------------------------------------
 
-    interactionLogDisplay.innerHTML = "";
+    interactionLogDisplay.innerHTML =
+        "<li>Waiting for interaction events...</li>";
 
 
     // --------------------------------------------------------
@@ -284,10 +285,13 @@ function resetTelemetrySession() {
 // RESET BUTTON EVENT
 // ============================================================
 
-resetTelemetryButton.addEventListener(
-    "click",
-    resetTelemetrySession
-);
+if (resetTelemetryButton) {
+
+    resetTelemetryButton.addEventListener(
+        "click",
+        resetTelemetrySession
+    );
+}
 
 
 // ============================================================
@@ -295,9 +299,9 @@ resetTelemetryButton.addEventListener(
 // ============================================================
 
 
-// ------------------------------------------------------------
+// ============================================================
 // Allowed hesitation status values
-// ------------------------------------------------------------
+// ============================================================
 
 const ALLOWED_HESITATION_STATUSES = [
 
@@ -309,9 +313,9 @@ const ALLOWED_HESITATION_STATUSES = [
 ];
 
 
-// ------------------------------------------------------------
+// ============================================================
 // Allowed click pattern values
-// ------------------------------------------------------------
+// ============================================================
 
 const ALLOWED_CLICK_PATTERNS = [
 
@@ -379,7 +383,6 @@ function validateTelemetryMetrics() {
 
     return (
 
-        // Click count
         isSafeTelemetryNumber(
             metrics.clickCount
         ) &&
@@ -388,21 +391,15 @@ function validateTelemetryMetrics() {
             metrics.clickCount
         ) &&
 
-
-        // Hesitation time
         isSafeTelemetryNumber(
             metrics.hesitationTime
         ) &&
 
-
-        // Hesitation status
         isSafeTelemetryText(
             metrics.hesitationStatus,
             ALLOWED_HESITATION_STATUSES
         ) &&
 
-
-        // Mouse telemetry
         isSafeTelemetryNumber(
             metrics.mouseVelocity
         ) &&
@@ -423,8 +420,6 @@ function validateTelemetryMetrics() {
             metrics.mouseMovementTime
         ) &&
 
-
-        // Click pattern
         isSafeTelemetryText(
             metrics.clickPattern,
             ALLOWED_CLICK_PATTERNS
@@ -444,6 +439,7 @@ function validateTelemetryEvent(event) {
         typeof event !== "object" ||
 
         event === null
+
     ) {
 
         return false;
@@ -452,46 +448,33 @@ function validateTelemetryEvent(event) {
 
     return (
 
-        // Event number
         Number.isInteger(
             event.eventNumber
         ) &&
 
         event.eventNumber > 0 &&
 
-
-        // Event type
         event.eventType === "click" &&
 
-
-        // Timestamp
         typeof event.timestamp === "string" &&
 
         event.timestamp.length <= 50 &&
 
-
-        // Click number
         Number.isInteger(
             event.clickNumber
         ) &&
 
         event.clickNumber > 0 &&
 
-
-        // Hesitation
         isSafeTelemetryNumber(
             event.hesitationTime
         ) &&
 
-
-        // Status
         isSafeTelemetryText(
             event.hesitationStatus,
             ALLOWED_HESITATION_STATUSES
         ) &&
 
-
-        // Pattern
         isSafeTelemetryText(
             event.clickPattern,
             ALLOWED_CLICK_PATTERNS
@@ -506,24 +489,17 @@ function validateTelemetryEvent(event) {
 
 function validateTelemetrySession() {
 
-    // --------------------------------------------------------
-    // Session object
-    // --------------------------------------------------------
-
     if (
 
         typeof telemetrySession !== "object" ||
 
         telemetrySession === null
+
     ) {
 
         return false;
     }
 
-
-    // --------------------------------------------------------
-    // Session ID
-    // --------------------------------------------------------
 
     if (
 
@@ -534,71 +510,57 @@ function validateTelemetrySession() {
         ) ||
 
         telemetrySession.sessionId.length > 100
+
     ) {
 
         return false;
     }
 
-
-    // --------------------------------------------------------
-    // Start time
-    // --------------------------------------------------------
 
     if (
 
         typeof telemetrySession.startedAt !== "string" ||
 
         telemetrySession.startedAt.length > 50
+
     ) {
 
         return false;
     }
 
-
-    // --------------------------------------------------------
-    // Metrics
-    // --------------------------------------------------------
 
     if (
+
         !validateTelemetryMetrics()
+
     ) {
 
         return false;
     }
 
-
-    // --------------------------------------------------------
-    // Events must be an array
-    // --------------------------------------------------------
 
     if (
 
         !Array.isArray(
             telemetrySession.events
         )
+
     ) {
 
         return false;
     }
 
-
-    // --------------------------------------------------------
-    // Maximum event limit
-    // --------------------------------------------------------
 
     if (
 
         telemetrySession.events.length >
         MAX_LOG_EVENTS
+
     ) {
 
         return false;
     }
 
-
-    // --------------------------------------------------------
-    // Validate every event
-    // --------------------------------------------------------
 
     return telemetrySession.events.every(
         validateTelemetryEvent
@@ -641,10 +603,6 @@ function storeStructuredClickEvent(
     };
 
 
-    // --------------------------------------------------------
-    // Store only validated events
-    // --------------------------------------------------------
-
     if (
         validateTelemetryEvent(event)
     ) {
@@ -654,14 +612,11 @@ function storeStructuredClickEvent(
         );
 
 
-        // ----------------------------------------------------
-        // Keep latest 10 structured events
-        // ----------------------------------------------------
-
         if (
 
             telemetrySession.events.length >
             MAX_LOG_EVENTS
+
         ) {
 
             telemetrySession.events.shift();
@@ -756,12 +711,7 @@ const MAX_LOG_EVENTS = 10;
 // VELOCITY SETTINGS
 // ============================================================
 
-// Ignore extremely small time intervals
-
 const MIN_TIME_INTERVAL = 0.01;
-
-
-// Maximum velocity accepted
 
 const MAX_VALID_VELOCITY = 3000;
 
@@ -793,95 +743,258 @@ const button =
         "testButton"
     );
 
-
 const clickCountDisplay =
     document.getElementById(
         "clickCount"
     );
-
 
 const hesitationDisplay =
     document.getElementById(
         "hesitationTime"
     );
 
-
 const hesitationThresholdDisplay =
     document.getElementById(
         "hesitationThreshold"
     );
-
 
 const hesitationStatusDisplay =
     document.getElementById(
         "hesitationStatus"
     );
 
-
 const velocityDisplay =
     document.getElementById(
         "mouseVelocity"
     );
-
 
 const mouseVelocityActivityDisplay =
     document.getElementById(
         "mouseVelocityActivity"
     );
 
-
 const averageVelocityDisplay =
     document.getElementById(
         "averageVelocity"
     );
-
 
 const maxVelocityDisplay =
     document.getElementById(
         "maxVelocity"
     );
 
-
 const mouseDistanceDisplay =
     document.getElementById(
         "mouseDistance"
     );
-
 
 const mouseMovementActivityDisplay =
     document.getElementById(
         "mouseMovementActivity"
     );
 
-
 const mouseMovementTimeDisplay =
     document.getElementById(
         "mouseMovementTime"
     );
-
 
 const clickPatternDisplay =
     document.getElementById(
         "clickPattern"
     );
 
-
 const statusDisplay =
     document.getElementById(
         "status"
     );
-
 
 const telemetryValidationDisplay =
     document.getElementById(
         "telemetryValidation"
     );
 
-
 const interactionLogDisplay =
     document.getElementById(
         "interactionLog"
     );
+
+
+// ============================================================
+// COMMIT 14
+// DYNAMIC UI RENDERING SHELL
+// ============================================================
+
+function createDynamicRenderingShell() {
+
+    let container =
+        document.getElementById(
+            "auraGenDynamicRoot"
+        );
+
+
+    if (!container) {
+
+        const heading =
+            document.createElement(
+                "h2"
+            );
+
+        heading.textContent =
+            "Dynamic UI Rendering";
+
+
+        container =
+            document.createElement(
+                "div"
+            );
+
+        container.id =
+            "auraGenDynamicRoot";
+
+
+        const message =
+            document.createElement(
+                "p"
+            );
+
+        message.textContent =
+            "Dynamic UI rendering shell ready.";
+
+
+        container.appendChild(
+            message
+        );
+
+
+        document.body.appendChild(
+            heading
+        );
+
+        document.body.appendChild(
+            container
+        );
+    }
+
+
+    return container;
+}
+
+
+// ============================================================
+// SAFE DYNAMIC HTML RENDERING
+// ============================================================
+
+function renderAuraGenUI(
+    rawHTML
+) {
+
+    const container =
+        createDynamicRenderingShell();
+
+
+    if (
+        typeof rawHTML !== "string"
+    ) {
+
+        console.warn(
+            "AuraGen dynamic UI requires an HTML string."
+        );
+
+        return false;
+    }
+
+
+    const parser =
+        new DOMParser();
+
+
+    const parsedDocument =
+        parser.parseFromString(
+            rawHTML,
+            "text/html"
+        );
+
+
+    // --------------------------------------------------------
+    // Remove executable script elements
+    // --------------------------------------------------------
+
+    parsedDocument
+        .querySelectorAll("script")
+        .forEach(
+            function (script) {
+
+                script.remove();
+            }
+        );
+
+
+    // --------------------------------------------------------
+    // Remove inline event handlers
+    // --------------------------------------------------------
+
+    parsedDocument
+        .querySelectorAll("*")
+        .forEach(
+            function (element) {
+
+                Array.from(
+                    element.attributes
+                ).forEach(
+                    function (attribute) {
+
+                        if (
+                            attribute.name
+                                .toLowerCase()
+                                .startsWith("on")
+                        ) {
+
+                            element.removeAttribute(
+                                attribute.name
+                            );
+                        }
+                    }
+                );
+            }
+        );
+
+
+    // --------------------------------------------------------
+    // Render sanitized HTML
+    // --------------------------------------------------------
+
+    container.innerHTML = "";
+
+    Array.from(
+        parsedDocument.body.childNodes
+    ).forEach(
+        function (node) {
+
+            container.appendChild(
+                document.importNode(
+                    node,
+                    true
+                )
+            );
+        }
+    );
+
+
+    console.log(
+        "AuraGen dynamic UI rendered successfully."
+    );
+
+
+    return true;
+}
+
+
+// ============================================================
+// PUBLIC DYNAMIC RENDERING API
+// ============================================================
+
+window.renderAuraGenUI =
+    renderAuraGenUI;
 
 
 // ============================================================
@@ -926,40 +1039,25 @@ function logInteractionEvent(
     };
 
 
-    // --------------------------------------------------------
-    // Add event
-    // --------------------------------------------------------
-
     interactionEvents.push(
         eventData
     );
 
 
-    // --------------------------------------------------------
-    // Keep latest 10 events
-    // --------------------------------------------------------
-
     if (
 
         interactionEvents.length >
         MAX_LOG_EVENTS
+
     ) {
 
         interactionEvents.shift();
     }
 
 
-    // --------------------------------------------------------
-    // Clear display
-    // --------------------------------------------------------
-
     interactionLogDisplay.innerHTML =
         "";
 
-
-    // --------------------------------------------------------
-    // Display events
-    // --------------------------------------------------------
 
     interactionEvents.forEach(
         function (event) {
@@ -1007,10 +1105,6 @@ function logInteractionEvent(
 
 function validateTelemetry() {
 
-    // --------------------------------------------------------
-    // Basic numeric validation
-    // --------------------------------------------------------
-
     const valuesAreNonNegative =
 
         clickCount >= 0 &&
@@ -1023,10 +1117,6 @@ function validateTelemetry() {
 
         currentMouseVelocity >= 0;
 
-
-    // --------------------------------------------------------
-    // Average velocity validation
-    // --------------------------------------------------------
 
     let averageVelocityIsValid =
         true;
@@ -1059,24 +1149,14 @@ function validateTelemetry() {
             );
 
 
-        // Allow small rounding difference
-
         averageVelocityIsValid =
             difference < 0.1;
     }
 
 
-    // --------------------------------------------------------
-    // Session safety validation
-    // --------------------------------------------------------
-
     const sessionIsSafe =
         updateTelemetrySafetyStatus();
 
-
-    // --------------------------------------------------------
-    // Final result
-    // --------------------------------------------------------
 
     if (
 
@@ -1422,7 +1502,6 @@ button.addEventListener(
 
     function () {
 
-
         // ----------------------------------------------------
         // Increase click count
         // ----------------------------------------------------
@@ -1644,7 +1723,6 @@ button.addEventListener(
         // ====================================================
 
         storeStructuredClickEvent(
-
             hesitationTime
         );
 
@@ -1660,6 +1738,13 @@ button.addEventListener(
 
 
 // ============================================================
+// INITIAL DYNAMIC UI SHELL
+// ============================================================
+
+createDynamicRenderingShell();
+
+
+// ============================================================
 // INITIAL STRUCTURED TELEMETRY UPDATE
 // ============================================================
 
@@ -1671,3 +1756,12 @@ updateTelemetrySession();
 // ============================================================
 
 validateTelemetry();
+
+
+// ============================================================
+// COMMIT 14 READY
+// ============================================================
+
+console.log(
+    "AuraGen Week 2 Dynamic UI Rendering Shell initialized."
+);
