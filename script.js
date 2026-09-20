@@ -1,7 +1,7 @@
 // ============================================================
 // AuraGen - Click & Hesitation Detection
 // Week 2 - Structured Telemetry + Dynamic UI Rendering
-// Commit 15 - Session Summary API
+// Commit 16 - Enhanced Session Summary
 // ============================================================
 
 
@@ -1203,6 +1203,164 @@ window.getAuraGenSessionSummary =
 
 
 // ============================================================
+// COMMIT 16 - ENHANCED SESSION SUMMARY
+// ============================================================
+
+function getAuraGenEnhancedSessionSummary() {
+
+    const metrics =
+        telemetrySession.metrics;
+
+    const sessionDuration =
+        Math.max(
+            0,
+            (performance.now() - startTime) / 1000
+        );
+
+    const telemetryIsValid =
+        validateTelemetry();
+
+    let interactionClassification =
+        "No interaction";
+
+    if (metrics.clickPattern !== "Waiting") {
+
+        interactionClassification =
+            metrics.clickPattern;
+    }
+
+    return {
+
+        sessionId:
+            telemetrySession.sessionId,
+
+        startedAt:
+            telemetrySession.startedAt,
+
+        generatedAt:
+            new Date().toISOString(),
+
+        sessionDuration:
+            Number(
+                sessionDuration.toFixed(2)
+            ),
+
+        totalClicks:
+            metrics.clickCount,
+
+        hesitationThreshold:
+            HESITATION_THRESHOLD,
+
+        hesitationTime:
+            Number(
+                metrics.hesitationTime.toFixed(2)
+            ),
+
+        hesitationStatus:
+            metrics.hesitationStatus,
+
+        clickPattern:
+            metrics.clickPattern,
+
+        interactionClassification:
+            interactionClassification,
+
+        currentMouseVelocity:
+            Number(
+                metrics.mouseVelocity.toFixed(2)
+            ),
+
+        averageMouseVelocity:
+            Number(
+                metrics.averageMouseVelocity.toFixed(2)
+            ),
+
+        maximumMouseVelocity:
+            Number(
+                metrics.maximumMouseVelocity.toFixed(2)
+            ),
+
+        mouseDistance:
+            Number(
+                metrics.mouseDistance.toFixed(2)
+            ),
+
+        mouseMovementTime:
+            Number(
+                metrics.mouseMovementTime.toFixed(2)
+            ),
+
+        mouseVelocityActivity:
+            getMouseVelocityActivity(),
+
+        mouseMovementActivity:
+            getMouseMovementActivity(),
+
+        recordedEvents:
+            telemetrySession.events.length,
+
+        eventCount:
+            telemetrySession.events.length,
+
+        telemetryValidation:
+            telemetryIsValid
+                ? "Valid"
+                : "Check required"
+    };
+}
+
+
+// ============================================================
+// COMMIT 16 - SESSION SUMMARY HELPERS
+// ============================================================
+
+function getMouseVelocityActivity() {
+
+    if (
+        currentMouseVelocity < 200
+    ) {
+
+        return "Slow movement";
+    }
+
+    if (
+        currentMouseVelocity < 1000
+    ) {
+
+        return "Normal movement";
+    }
+
+    return "Fast movement";
+}
+
+
+function getMouseMovementActivity() {
+
+    if (
+        totalMouseDistance <
+        LOW_MOVEMENT_THRESHOLD
+    ) {
+
+        return "Low movement";
+    }
+
+    if (
+        totalMouseDistance <
+        HIGH_MOVEMENT_THRESHOLD
+    ) {
+
+        return "Moderate movement";
+    }
+
+    return "High movement";
+}
+
+
+window.getAuraGenEnhancedSessionSummary =
+    getAuraGenEnhancedSessionSummary;
+
+
+// ============================================================
 // INITIALIZATION
 // ============================================================
 
@@ -1218,4 +1376,8 @@ console.log(
 
 console.log(
     "AuraGen Week 2 Session Summary API initialized."
+);
+
+console.log(
+    "AuraGen Week 2 Enhanced Session Summary initialized."
 );
