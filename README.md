@@ -230,3 +230,33 @@ telemetry functionality implemented for the Week 1 work.
 Further development can extend the prototype with additional
 telemetry storage, backend integration, real-time data streaming,
 and a production-ready application architecture.
+
+## React Telemetry Hook
+
+### Member 2 Integration Layer
+
+AuraGen provides a reusable React telemetry hook through:
+
+`useAuraGenTelemetry.js`
+
+The hook consumes the existing AuraGen telemetry API:
+
+`window.getAuraGenTelemetry()`
+
+It exposes the following telemetry metrics to a React component:
+
+- Click count
+- Hesitation time
+- Hesitation status
+- Mouse velocity
+- Average mouse velocity
+- Maximum mouse velocity
+- Mouse distance
+- Mouse movement time
+- Click pattern
+
+The hook refreshes telemetry periodically and cleans up its timer when the React component is unmounted.
+
+### Purpose
+
+This hook provides a bridge between the existing AuraGen JavaScript telemetry engine and a future React-based user interface without changing the current telemetry detection logic.
