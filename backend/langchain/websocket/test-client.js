@@ -1,22 +1,30 @@
 const WebSocket = require('ws');
-const socket = new WebSocket('ws://localhost:8080');
 
-socket.on('open', () => {
-  console.log('Streaming test telemetry batches...');
+const ws = new WebSocket('ws://localhost:8080');
 
-  // 1. Send valid hesitation event
-  socket.send(JSON.stringify({
-    type: 'hesitation',
-    duration: 1200,
-    timestamp: Date.now()
-  }));
+ws.on('open', () => {
+  console.log('Connected to WebSocket server.');
 
-  // 2. Send malformed event after 500ms (testing validation error response)
-  setTimeout(() => {
-    socket.send(JSON.stringify({ invalidField: true }));
-  }, 500);
+  // Simulated continuous telemetry stream
+  const events = [
+    { type: 'mouse_move', x: 120, y: 350, velocity: 1.8 },
+    { type: 'hesitation', durationMs: 1200 },
+    { type: 'click', target: 'buy-button' },
+    { type: 'hesitation', durationMs: 2500 }
+  ];
+
+  events.forEach((event, index) => {
+    setTimeout(() => {
+      console.log(`Sending telemetry payload [${index + 1}]:`, event);
+      ws.send(JSON.stringify(event));
+    }, index * 1000);
+  });
 });
 
-socket.on('message', (response) => {
-  console.log('[Server Feedback]:', response.toString());
+ws.on('message', (data) => {
+  console.log('Server response:', JSON.parse(data));
+});
+
+ws.on('close', () => {
+  console.log('Disconnected from server.');
 });
