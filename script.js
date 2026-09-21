@@ -1553,3 +1553,29 @@ window.getAuraGenExportStatus = function () {
 console.log(
     "AuraGen Commit 19 Export Status Tracking initialized."
 );
+
+// ==========================================
+// COMMIT 20 - EXPORT METADATA
+// ==========================================
+
+window.getAuraGenExportMetadata = function () {
+
+    return {
+        sessionId:
+            telemetrySession
+                ? telemetrySession.sessionId
+                : "unknown",
+
+        exportCount:
+            window.auraGenExportStatus
+                ? window.auraGenExportStatus.exportCount
+                : 0,
+
+        exportedAt:
+            new Date().toISOString()
+    };
+};
+
+console.log(
+    "AuraGen Commit 20 Export Metadata initialized."
+);
