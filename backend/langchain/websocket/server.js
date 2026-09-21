@@ -26,6 +26,19 @@ wss.on('connection', (ws) => {
         return;
       }
 
+      // Handle session reset command
+      if (payload.type === 'reset_session') {
+        const resetResult = calculator.reset();
+        console.log(`[${clientId}] Telemetry buffer reset requested`);
+        ws.send(JSON.stringify({
+          status: 'reset_success',
+          clientId: clientId,
+          cognitiveLoadScore: 0,
+          timestamp: Date.now()
+        }));
+        return;
+      }
+
       calculator.addEvent(payload);
       const score = calculator.calculateScore();
       const overloaded = calculator.isOverloaded();
