@@ -14,11 +14,16 @@ wss.on('connection', (ws) => {
     try {
       const payload = JSON.parse(message);
       
-      if (!payload.type) {
-        ws.send(JSON.stringify({ status: 'error', message: 'Missing event type' }));
+      // Basic schema validation
+      if (!payload || typeof payload !== 'object' || !payload.type) {
+        ws.send(JSON.stringify({ 
+          status: 'error', 
+          message: 'Invalid payload schema: "type" property is required' 
+        }));
         return;
       }
 
+      // Record event and calculate cognitive load score
       calculator.addEvent(payload);
       const score = calculator.calculateScore();
       const overloaded = calculator.isOverloaded();
@@ -28,11 +33,12 @@ wss.on('connection', (ws) => {
       ws.send(JSON.stringify({
         status: 'received',
         cognitiveLoadScore: score,
-        isOverloaded: overloaded
+        isOverloaded: overloaded,
+        timestamp: Date.now()
       }));
 
     } catch (err) {
-      ws.send(JSON.stringify({ status: 'error', message: 'Invalid JSON payload' }));
+      ws.send(JSON.stringify({ status: 'error', message: 'Invalid JSON format' }));
     }
   });
 
