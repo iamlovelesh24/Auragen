@@ -5,16 +5,19 @@ const PORT = 8080;
 const wss = new WebSocket.Server({ port: PORT });
 const calculator = new CognitiveLoadCalculator();
 
+let activeClientsCount = 0;
+
 console.log(`WebSocket telemetry server running on ws://localhost:${PORT}`);
 
 wss.on('connection', (ws) => {
-  console.log('Client connected to telemetry stream.');
+  activeClientsCount++;
+  const clientId = `client_${Math.random().toString(36).substring(2, 9)}`;
+  console.log(`[${clientId}] Connected to telemetry stream. Total active: ${activeClientsCount}`);
 
   ws.on('message', (message) => {
     try {
       const payload = JSON.parse(message);
       
-      // Basic schema validation
       if (!payload || typeof payload !== 'object' || !payload.type) {
         ws.send(JSON.stringify({ 
           status: 'error', 
@@ -23,15 +26,15 @@ wss.on('connection', (ws) => {
         return;
       }
 
-      // Record event and calculate cognitive load score
       calculator.addEvent(payload);
       const score = calculator.calculateScore();
       const overloaded = calculator.isOverloaded();
 
-      console.log(`[Telemetry Event]: ${payload.type} | Score: ${score} | Overloaded: ${overloaded}`);
+      console.log(`[${clientId} Telemetry Event]: ${payload.type} | Score: ${score} | Overloaded: ${overloaded}`);
 
       ws.send(JSON.stringify({
         status: 'received',
+        clientId: clientId,
         cognitiveLoadScore: score,
         isOverloaded: overloaded,
         timestamp: Date.now()
@@ -43,6 +46,7 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('close', () => {
-    console.log('Client disconnected.');
+    activeClientsCount--;
+    console.log(`[${clientId}] Disconnected. Total active: ${activeClientsCount}`);
   });
 });
