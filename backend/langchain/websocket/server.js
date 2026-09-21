@@ -1,55 +1,42 @@
 const WebSocket = require('ws');
+const CognitiveLoadCalculator = require('./cognitiveLoad');
 
-const PORT = process.env.PORT || 8080;
+const PORT = 8080;
 const wss = new WebSocket.Server({ port: PORT });
+const calculator = new CognitiveLoadCalculator();
 
-// Validate required structure of telemetry payload
-function validateTelemetryPayload(payload) {
-  if (!payload || typeof payload !== 'object') return false;
-  const validTypes = ['mouse_move', 'click', 'hesitation'];
-  if (!validTypes.includes(payload.type)) return false;
-  return true;
-}
+console.log(`WebSocket telemetry server running on ws://localhost:${PORT}`);
 
-wss.on('connection', (socket) => {
-  console.log('[WebSocket] Client connected');
+wss.on('connection', (ws) => {
+  console.log('Client connected to telemetry stream.');
 
-  socket.on('message', (data) => {
+  ws.on('message', (message) => {
     try {
-      const payload = JSON.parse(data.toString());
-
-      if (!validateTelemetryPayload(payload)) {
-        console.warn('[Telemetry Validation Failed]: Malformed event structure', payload);
-        socket.send(JSON.stringify({ status: 'error', message: 'Invalid telemetry schema' }));
+      const payload = JSON.parse(message);
+      
+      if (!payload.type) {
+        ws.send(JSON.stringify({ status: 'error', message: 'Missing event type' }));
         return;
       }
 
-      // Route parsed event type
-      switch (payload.type) {
-        case 'mouse_move':
-          console.log(`[Mouse Movement] Velocity: ${payload.velocity} | Coordinates: (${payload.x}, ${payload.y})`);
-          break;
-        case 'click':
-          console.log(`[Click Event] Target: ${payload.target || 'unknown'}`);
-          break;
-        case 'hesitation':
-          console.log(`[Hesitation Detected] Duration: ${payload.duration}ms`);
-          break;
-        default:
-          console.log('[Telemetry Stream]:', payload);
-      }
+      calculator.addEvent(payload);
+      const score = calculator.calculateScore();
+      const overloaded = calculator.isOverloaded();
 
-      // Acknowledge receipt
-      socket.send(JSON.stringify({ status: 'ack', type: payload.type, timestamp: Date.now() }));
+      console.log(`[Telemetry Event]: ${payload.type} | Score: ${score} | Overloaded: ${overloaded}`);
+
+      ws.send(JSON.stringify({
+        status: 'received',
+        cognitiveLoadScore: score,
+        isOverloaded: overloaded
+      }));
 
     } catch (err) {
-      console.error('[JSON Parse Error]: Incoming message is not valid JSON');
+      ws.send(JSON.stringify({ status: 'error', message: 'Invalid JSON payload' }));
     }
   });
 
-  socket.on('close', () => {
-    console.log('[WebSocket] Client disconnected');
+  ws.on('close', () => {
+    console.log('Client disconnected.');
   });
 });
-
-console.log(`WebSocket server running on ws://localhost:${PORT}`);
