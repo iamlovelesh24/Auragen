@@ -1381,3 +1381,87 @@ console.log(
 console.log(
     "AuraGen Week 2 Enhanced Session Summary initialized."
 );
+
+// =====================================================
+// WEEK 2 - SIMPLE TELEMETRY EXPORT API
+// =====================================================
+
+function exportAuraGenTelemetry() {
+
+    const telemetryData = {
+
+        exportVersion: "1.0",
+
+        exportedAt:
+            new Date().toISOString(),
+
+        source:
+            "AuraGen Click & Hesitation Detection",
+
+        interaction: {
+
+            clickCount:
+                typeof clickCount !== "undefined"
+                    ? clickCount
+                    : 0,
+
+            hesitationTime:
+                typeof hesitationTime !== "undefined"
+                    ? Number(hesitationTime.toFixed(2))
+                    : 0,
+
+            hesitationStatus:
+                typeof hesitationStatusDisplay !== "undefined"
+                    ? hesitationStatusDisplay.textContent
+                    : "Unavailable",
+
+            clickPattern:
+                typeof clickPatternDisplay !== "undefined"
+                    ? clickPatternDisplay.textContent
+                    : "Unavailable"
+        },
+
+        mouseTelemetry: {
+
+            currentVelocity:
+                typeof currentMouseVelocity !== "undefined"
+                    ? Number(currentMouseVelocity.toFixed(2))
+                    : 0,
+
+            averageVelocity:
+                typeof totalMouseTime !== "undefined" &&
+                totalMouseTime > 0
+                    ? Number(
+                        (totalMouseDistance / totalMouseTime)
+                        .toFixed(2)
+                    )
+                    : 0,
+
+            maximumVelocity:
+                typeof maxMouseVelocity !== "undefined"
+                    ? Number(maxMouseVelocity.toFixed(2))
+                    : 0,
+
+            mouseDistance:
+                typeof totalMouseDistance !== "undefined"
+                    ? Number(totalMouseDistance.toFixed(2))
+                    : 0,
+
+            mouseMovementTime:
+                typeof totalMouseTime !== "undefined"
+                    ? Number(totalMouseTime.toFixed(2))
+                    : 0
+        }
+    };
+
+    return telemetryData;
+}
+
+
+// Make the API available from the browser console
+window.exportAuraGenTelemetry =
+    exportAuraGenTelemetry;
+
+console.log(
+    "AuraGen Week 2 Simple Telemetry Export API initialized."
+);
