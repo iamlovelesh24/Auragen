@@ -1465,3 +1465,52 @@ window.exportAuraGenTelemetry =
 console.log(
     "AuraGen Week 2 Simple Telemetry Export API initialized."
 );
+
+// =====================================================
+// COMMIT 18 - CLICK & HESITATION JSON EXPORT
+// =====================================================
+
+function downloadClickHesitationJSON() {
+
+    const data = {
+        exportedAt: new Date().toISOString(),
+        clickCount: clickCount,
+        hesitationTime: Number(hesitationTime.toFixed(2)),
+        hesitationStatus: hesitationStatusDisplay.textContent,
+        hesitationThreshold: 3,
+        clickPattern: clickPatternDisplay.textContent
+    };
+
+    const json = JSON.stringify(data, null, 2);
+
+    const blob = new Blob(
+        [json],
+        { type: "application/json" }
+    );
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = "auragen-click-hesitation.json";
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+
+    console.log(
+        "AuraGen Click & Hesitation JSON exported."
+    );
+}
+
+window.downloadClickHesitationJSON =
+    downloadClickHesitationJSON;
+
+console.log(
+    "AuraGen Commit 18 JSON Export initialized."
+);
