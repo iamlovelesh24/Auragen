@@ -17,6 +17,12 @@ except ImportError:
     groq = None
 
 from prompts import DESIGN_SYSTEM_CONTEXT, CODEGEN_PROMPT_TEMPLATE
+from babel_bridge import (
+    validate_component_code,
+    SyntaxValidationError,
+    SecurityValidationError,
+    ValidatorUnavailableError,
+)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -37,6 +43,7 @@ if not logger.handlers:
 
 MODEL_NAME = os.getenv("CODEGEN_MODEL", "llama-3.3-70b-versatile")
 TEMPERATURE = 0.3
+MAX_OUTPUT_TOKENS = 3072
 
 REQUIRED_ENV_VARS = ("GROQ_API_KEY",)
 
@@ -114,7 +121,12 @@ def _build_chain():
             ],
             template=CODEGEN_PROMPT_TEMPLATE,
         )
-        llm = ChatGroq(model=MODEL_NAME, temperature=TEMPERATURE)
+        llm = ChatGroq(
+    model=MODEL_NAME,
+    temperature=TEMPERATURE,
+    max_tokens=MAX_OUTPUT_TOKENS,
+    reasoning_effort="low",
+)
         parser = StrOutputParser()
         return prompt | llm | parser
     except Exception as e:
@@ -127,7 +139,8 @@ _chain = None
 def _get_chain():
     global _chain
     if _chain is None:
-        logger.info("Building generation chain (model=%s, temperature=%s)", MODEL_NAME, TEMPERATURE)
+        logger.info("Building generation chain (model=%s, temperature=%s, max_tokens=%s)",
+                     MODEL_NAME, TEMPERATURE, MAX_OUTPUT_TOKENS)
         _chain = _build_chain()
     return _chain
 
@@ -143,6 +156,11 @@ def generate_component(
     Generate a simplified React (.tsx) replacement component for a UI field
     that a user is struggling with, based on detected friction signals.
 
+    Retries the full generate -> extract -> validate cycle up to
+    (max_retries + 1) times, so a truncated response, an empty response,
+    or a response that fails safety/contract validation all get a real
+    second chance before this function gives up.
+
     Args:
         cognitive_load_score (int|float): Friction Engine's score (0-100)
             for how much difficulty the user is having with this field.
@@ -152,12 +170,13 @@ def generate_component(
             that triggered this, e.g. "3 rage clicks, 4s hesitation".
         original_field_type (str): Description of the current UI element
             being replaced.
-        max_retries (int): Retry attempts on transient LLM failures.
+        max_retries (int): Retry attempts on transient failures.
             Default 2 (3 total attempts).
 
     Returns:
         str: Clean TSX source code, fence stripped, guaranteed to contain
-            'export default'.
+            'export default', and guaranteed to pass Babel syntax +
+            security validation.
 
     Raises:
         ConfigurationError, InvalidInputError, GenerationError,
@@ -177,7 +196,6 @@ def generate_component(
         "original_field_type": original_field_type,
     }
 
-    # --- Log what's being sent (Day 5) ---
     logger.info(
         "PROMPT SENT | field_name=%r | cognitive_load_score=%s | "
         "signal_summary=%r | original_field_type=%r",
@@ -185,12 +203,13 @@ def generate_component(
     )
     logger.debug("Full prompt inputs: %s", prompt_inputs)
 
+    total_attempts = max_retries + 1
     last_exc = None
-    raw_output = None
-    for attempt in range(1, max_retries + 2):
+
+    for attempt in range(1, total_attempts + 1):
+        # --- 1. Call the LLM ---
         try:
             raw_output = chain.invoke(prompt_inputs)
-            break
         except OutputParserException as e:
             logger.error("Failed to parse model output: %s", e)
             raise GenerationError(f"Failed to parse model output: {e}") from e
@@ -199,46 +218,106 @@ def generate_component(
             is_rate_limit = groq is not None and isinstance(e, getattr(groq, "RateLimitError", ()))
             is_timeout = "timeout" in str(e).lower()
             logger.warning(
-                "generate_component attempt %d/%d failed (%s): %s",
-                attempt, max_retries + 1, type(e).__name__, e,
+                "generate_component attempt %d/%d: LLM call failed (%s): %s",
+                attempt, total_attempts, type(e).__name__, e,
             )
-            if attempt == max_retries + 1:
+            if attempt == total_attempts:
                 kind = "rate limit" if is_rate_limit else "timeout" if is_timeout else "API error"
                 raise GenerationError(
                     f"LLM call failed after {attempt} attempt(s) ({kind}): {e}"
                 ) from e
             continue
-    else:
-        raise GenerationError(f"LLM call failed: {last_exc}") from last_exc
 
-    response_preview = (raw_output or "")[:300].replace("\n", " ")
-    logger.info(
-        "RESPONSE RECEIVED | field_name=%r | length=%d chars | preview=%r",
-        field_name, len(raw_output or ""), response_preview,
-    )
-    logger.debug("Full raw response: %s", raw_output)
+        response_preview = (raw_output or "")[:300].replace("\n", " ")
+        logger.info(
+            "RESPONSE RECEIVED | field_name=%r | attempt=%d/%d | length=%d chars | preview=%r",
+            field_name, attempt, total_attempts, len(raw_output or ""), response_preview,
+        )
+        logger.debug("Full raw response: %s", raw_output)
 
-    if not raw_output or not raw_output.strip():
-        raise EmptyOutputError("Model returned an empty response")
+        # --- 2. Reject empty output, retry ---
+        if not raw_output or not raw_output.strip():
+            last_exc = EmptyOutputError("Model returned an empty response")
+            logger.warning("generate_component attempt %d/%d: empty output, retrying", attempt, total_attempts)
+            if attempt == total_attempts:
+                raise last_exc
+            continue
 
-    code = _extract_code_block(raw_output)
+        # --- 3. Extract code block (tolerates a truncated/unterminated fence) ---
+        try:
+            code = _extract_code_block(raw_output)
+        except MalformedComponentError as e:
+            last_exc = e
+            logger.warning("generate_component attempt %d/%d: extraction failed (%s), retrying",
+                            attempt, total_attempts, e)
+            if attempt == total_attempts:
+                raise
+            continue
 
-    if not code:
-        raise EmptyOutputError("No usable code found in model output")
+        if not code:
+            last_exc = EmptyOutputError("No usable code found in model output")
+            logger.warning("generate_component attempt %d/%d: no code extracted, retrying",
+                            attempt, total_attempts)
+            if attempt == total_attempts:
+                raise last_exc
+            continue
 
-    _validate_component_contract(code, field_name)
+        # --- 4. Babel syntax + security validation ---
+        try:
+            validate_component_code(code)
+        except SyntaxValidationError as e:
+            last_exc = MalformedComponentError(f"Generated code has syntax errors: {e.errors}")
+            logger.warning("generate_component attempt %d/%d: syntax validation failed (%s), retrying",
+                            attempt, total_attempts, e.errors)
+            if attempt == total_attempts:
+                raise last_exc from e
+            continue
+        except SecurityValidationError as e:
+            last_exc = MalformedComponentError(f"Generated code failed security checks: {e.flags}")
+            logger.warning("generate_component attempt %d/%d: security validation failed (%s), retrying",
+                            attempt, total_attempts, e.flags)
+            if attempt == total_attempts:
+                raise last_exc from e
+            continue
+        except ValidatorUnavailableError as e:
+            # Infra problem, not a generation problem — don't burn retries on it.
+            logger.error("Babel validator unavailable: %s", e)
+            raise GenerationError(f"Safety validation unavailable, refusing to ship unverified code: {e}") from e
 
-    logger.info("Generation succeeded for field_name=%r (%d chars of code)", field_name, len(code))
+        # --- 5. Design-system contract validation ---
+        try:
+            _validate_component_contract(code, field_name)
+        except MalformedComponentError as e:
+            last_exc = e
+            logger.warning("generate_component attempt %d/%d: contract validation failed (%s), retrying",
+                            attempt, total_attempts, e)
+            if attempt == total_attempts:
+                raise
+            continue
 
-    return code
+        logger.info("Generation succeeded for field_name=%r on attempt %d/%d (%d chars of code)",
+                     field_name, attempt, total_attempts, len(code))
+        return code
+
+    # Should be unreachable — every branch above either returns or raises on the last attempt.
+    raise GenerationError(f"Generation failed after {total_attempts} attempt(s): {last_exc}") from last_exc
 
 
 def _extract_code_block(text):
     if not text:
         return ""
+
     match = re.search(r"```(?:tsx|jsx|javascript)?\s*(.*?)```", text, re.DOTALL)
     if match:
         return match.group(1).strip()
+
+    # Fallback: opening fence present but no closing fence — likely a truncated
+    # response (e.g. hit max_tokens mid-generation). Use what's there; downstream
+    # Babel validation will catch it if the partial code isn't actually valid.
+    open_match = re.search(r"```(?:tsx|jsx|javascript)?\s*(.*)", text, re.DOTALL)
+    if open_match and open_match.group(1).strip():
+        logger.warning("Fenced code block appears truncated (no closing fence) — using partial content")
+        return open_match.group(1).strip()
 
     raise MalformedComponentError(
         "Model output did not contain a fenced code block "
