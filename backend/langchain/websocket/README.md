@@ -1,15 +1,22 @@
-# WebSocket Telemetry Server (AuraGen)
+# AuraGen - WebSocket Telemetry Ingestion & Cognitive Load Engine
 
-Real-time telemetry ingestion and cognitive load calculation service for AuraGen.
+Real-time backend telemetry ingestion server built with Node.js for AuraGen. It ingests live interaction events via WebSocket connections and dynamically calculates cognitive load scores.
 
-## Features
-- **WebSocket Gateway (`ws://localhost:8080`)**: Ingests real-time interaction signals from client apps.
-- **Sliding Window Calculator**: Computes user cognitive load based on interaction events (`hesitation`, `mouse_move`, `backspace`, `rapid_click`, etc.).
-- **Session Management**: Tracks active clients with unique connection IDs (`client_xxxx`).
-- **Session Reset**: Supports explicit `reset_session` commands to flush active telemetry buffers.
+## Project Overview
 
-## Quick Start
+The WebSocket Telemetry Engine acts as the central ingestion hub for client-side interaction signals. It validates incoming telemetry payloads, tracks active connected clients, streams live score updates, and provides session reset capabilities.
 
-### 1. Install Dependencies
-```bash
-npm install
+## Week 1 Implementation
+
+The following features have been implemented and verified in this module:
+
+- **Real-Time WebSocket Ingestion Server (`server.js`):** Listens on port 8080 to process client telemetry streams.
+- **Sliding-Window Cognitive Load Calculator (`cognitiveLoad.js`):** Computes live cognitive load metrics based on interaction duration, keypress delay, and activity frequency.
+- **Payload Schema Validation & Active Client Tracking:** Rejects malformed JSON and logs connected client session IDs.
+- **End-to-End Test Client (`test-client.js`):** Automated client script simulating live telemetry payloads and session resets.
+
+## Setup & Running Instructions
+
+1. **Install Dependencies:**
+   ```bash
+   npm install
