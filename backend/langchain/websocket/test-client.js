@@ -1,4 +1,4 @@
-const WebSocket = require('ws');
+gitconst WebSocket = require('ws');
 
 const ws = new WebSocket('ws://localhost:8080');
 

@@ -96,6 +96,66 @@ def test_generate_component_empty_output_raises(mock_get_chain):
                 signal_summary="repeated backspacing",
                 original_field_type="text input",
             )
+# ---------------------------------------------------------------------------
+# Day 6: Unit tests for _extract_code_block() in isolation
+# ---------------------------------------------------------------------------
+
+def test_extract_code_block_with_tsx_fence():
+    text = "Here's your component:\n```tsx\nexport default function Foo() {}\n```"
+    result = codegen._extract_code_block(text)
+    assert result == "export default function Foo() {}"
+
+
+def test_extract_code_block_with_plain_fence_no_language():
+    text = "```\nexport default function Bar() {}\n```"
+    result = codegen._extract_code_block(text)
+    assert result == "export default function Bar() {}"
+
+
+def test_extract_code_block_with_jsx_fence():
+    text = "```jsx\nexport default function Baz() { return <div/>; }\n```"
+    result = codegen._extract_code_block(text)
+    assert "export default function Baz()" in result
+
+
+def test_extract_code_block_strips_surrounding_whitespace():
+    text = "```tsx\n\n\n  export default function Padded() {}  \n\n\n```"
+    result = codegen._extract_code_block(text)
+    assert result == "export default function Padded() {}"
+
+
+def test_extract_code_block_no_fence_raises():
+    text = "Sorry, I can't help with that today."
+    with pytest.raises(MalformedComponentError):
+        codegen._extract_code_block(text)
+
+
+def test_extract_code_block_empty_string_returns_empty():
+    result = codegen._extract_code_block("")
+    assert result == ""
+
+
+def test_extract_code_block_none_returns_empty():
+    result = codegen._extract_code_block(None)
+    assert result == ""
+
+
+def test_extract_code_block_multiline_component():
+    text = """```tsx
+import React from 'react';
+
+export default function MultiLine() {
+  return (
+    <div>
+      <p>Hello</p>
+    </div>
+  );
+}
+```"""
+    result = codegen._extract_code_block(text)
+    assert result.startswith("import React")
+    assert "export default function MultiLine()" in result
+    assert result.endswith("}")
 
 
 if __name__ == "__main__":
