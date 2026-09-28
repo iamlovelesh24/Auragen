@@ -17,7 +17,7 @@ from codegen import (
     MalformedComponentError,
 )
 
-RUNS_PER_SCENARIO = 3  # bump up later once you trust the pipeline / have API budget
+RUNS_PER_SCENARIO = 2  # bump up later once you trust the pipeline / have API budget
 
 # Tokens expected to appear if the component actually followed DESIGN_SYSTEM_CONTEXT.
 # Adjust these to match real class names / patterns from prompts.py.
@@ -73,6 +73,9 @@ def run_scenario(scenario: dict) -> ScenarioResult:
         try:
             code = generate_component(**scenario)
             r.generation_ok += 1
+            comp_dir = Path("audit_reports/components")
+            comp_dir.mkdir(parents=True, exist_ok=True)
+            (comp_dir / f"{scenario['field_name'].replace(' ', '')}_run{i}.tsx").write_text(code, encoding="utf-8")
         except (ConfigurationError, InvalidInputError, GenerationError,
                  EmptyOutputError, MalformedComponentError) as exc:
             r.failures.append({
