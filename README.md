@@ -262,3 +262,41 @@ The hook refreshes telemetry periodically and cleans up its timer when the React
 ### Purpose
 
 This hook provides a bridge between the existing AuraGen JavaScript telemetry engine and a future React-based user interface without changing the current telemetry detection logic.
+
+## Week 3: Contextual Awareness & UI Morphing
+
+### Contextual Awareness
+
+AuraGen now captures the current user and UI context before generating an adaptive interface.
+
+Implemented through:
+
+- `contextAwareness.js`
+- Captures current user input and active UI state
+- Captures DOM metadata such as page title, URL, forms, inputs, and element count
+- Provides structured context through `getAuraGenContext()`
+- Preserves user-entered information for adaptive UI generation
+
+### UI Morphing
+
+AuraGen now supports dynamic UI transformation based on the captured context.
+
+Implemented through:
+
+- `morphingUI.js`
+- Dynamically transforms the existing interface into an adaptive UI
+- Preserves previously entered user information
+- Displays the generated contextual interface without requiring a page refresh
+- Provides a foundation for future AI-generated UI components
+
+### Week 3 Validation
+
+The Week 3 implementation was validated through browser-based testing.
+
+Verified:
+
+- Context data is captured correctly
+- User input is preserved
+- DOM context is available
+- Adaptive UI transformation completes successfully
+- Contextual information is displayed in the transformed UI
