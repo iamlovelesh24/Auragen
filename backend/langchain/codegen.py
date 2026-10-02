@@ -16,7 +16,15 @@ try:
 except ImportError:
     groq = None
 
-from prompts import DESIGN_SYSTEM_CONTEXT, CODEGEN_PROMPT_TEMPLATE
+from prompts import (
+    DESIGN_SYSTEM_CONTEXT,
+    CODEGEN_PROMPT_TEMPLATE,
+    build_context_section,
+)
+from dom_sanitizer import (
+    sanitize_dom_snapshot,
+    sanitize_field_values,
+)
 from babel_bridge import (
     validate_component_code,
     SyntaxValidationError,
@@ -88,7 +96,14 @@ def _check_env():
         )
 
 
-def _validate_inputs(cognitive_load_score, field_name, signal_summary, original_field_type):
+def _validate_inputs(
+    cognitive_load_score,
+    field_name,
+    signal_summary,
+    original_field_type,
+    dom_snapshot=None,
+    field_values=None,
+):
     errors = []
 
     if not isinstance(cognitive_load_score, (int, float)):
@@ -118,6 +133,7 @@ def _build_chain():
                 "field_name",
                 "signal_summary",
                 "original_field_type",
+                "context_section",
             ],
             template=CODEGEN_PROMPT_TEMPLATE,
         )
@@ -151,6 +167,8 @@ def generate_component(
     signal_summary,
     original_field_type,
     max_retries=2,
+    dom_snapshot=None,
+    field_values=None,
 ):
     """
     Generate a simplified React (.tsx) replacement component for a UI field
@@ -184,7 +202,22 @@ def generate_component(
     """
 
     _check_env()
-    _validate_inputs(cognitive_load_score, field_name, signal_summary, original_field_type)
+    _validate_inputs(
+        cognitive_load_score,
+        field_name,
+        signal_summary,
+        original_field_type,
+        dom_snapshot,
+        field_values,
+    )
+
+    sanitized_dom = sanitize_dom_snapshot(dom_snapshot)
+    sanitized_values = sanitize_field_values(field_values)
+
+    context_section = build_context_section(
+        dom_snapshot=sanitized_dom,
+        field_values=sanitized_values,
+    )
 
     chain = _get_chain()
 
@@ -194,12 +227,24 @@ def generate_component(
         "field_name": field_name,
         "signal_summary": signal_summary,
         "original_field_type": original_field_type,
+        "context_section": context_section,
+    }
+
+    field_value_lengths = {
+        key: len(value)
+        for key, value in sanitized_values.items()
     }
 
     logger.info(
         "PROMPT SENT | field_name=%r | cognitive_load_score=%s | "
-        "signal_summary=%r | original_field_type=%r",
-        field_name, cognitive_load_score, signal_summary, original_field_type,
+        "signal_summary=%r | original_field_type=%r | "
+        "dom_context_chars=%d | field_value_lengths=%s",
+        field_name,
+        cognitive_load_score,
+        signal_summary,
+        original_field_type,
+        len(sanitized_dom),
+        field_value_lengths,
     )
     logger.debug("Full prompt inputs: %s", prompt_inputs)
 
