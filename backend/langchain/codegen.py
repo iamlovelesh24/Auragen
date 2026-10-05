@@ -448,6 +448,292 @@ def generate_component(
     raise GenerationError(f"Generation failed after {total_attempts} attempt(s): {last_exc}") from last_exc
 
 
+
+async def stream_component(
+    cognitive_load_score,
+    field_name,
+    signal_summary,
+    original_field_type,
+    max_retries=2,
+    dom_snapshot=None,
+    field_values=None,
+):
+    """
+    Stream LLM output chunks while preserving the existing validation pipeline.
+
+    Chunks are yielded as they arrive from LangChain's async stream.
+    The complete response is accumulated and validated only after streaming
+    finishes. Only fully validated component code is stored in the cache.
+
+    Yields:
+        str: Incremental LLM output chunks.
+
+    Raises:
+        ConfigurationError, InvalidInputError, GenerationError,
+        EmptyOutputError, MalformedComponentError
+    """
+    _check_env()
+
+    _validate_inputs(
+        cognitive_load_score,
+        field_name,
+        signal_summary,
+        original_field_type,
+        dom_snapshot,
+        field_values,
+    )
+
+    sanitized_dom = sanitize_dom_snapshot(dom_snapshot)
+    sanitized_values = sanitize_field_values(field_values)
+
+    cache_key = _build_cache_key(
+        cognitive_load_score=cognitive_load_score,
+        field_name=field_name,
+        signal_summary=signal_summary,
+        original_field_type=original_field_type,
+        sanitized_dom=sanitized_dom,
+        sanitized_values=sanitized_values,
+    )
+
+    cached_component = _get_cached_component(cache_key)
+
+    if cached_component is not None:
+        logger.info(
+            "STREAM CACHE HIT | field_name=%r | cache_age_limit_seconds=%s",
+            field_name,
+            CACHE_TTL_SECONDS,
+        )
+        yield cached_component
+        return
+
+    logger.info("STREAM CACHE MISS | field_name=%r", field_name)
+
+    context_section = build_context_section(
+        dom_snapshot=sanitized_dom,
+        field_values=sanitized_values,
+    )
+
+    chain = _get_chain()
+
+    prompt_inputs = {
+        "design_system": DESIGN_SYSTEM_CONTEXT,
+        "cognitive_load_score": cognitive_load_score,
+        "field_name": field_name,
+        "signal_summary": signal_summary,
+        "original_field_type": original_field_type,
+        "context_section": context_section,
+    }
+
+    field_value_lengths = {
+        key: len(value)
+        for key, value in sanitized_values.items()
+    }
+
+    logger.info(
+        "STREAM PROMPT SENT | field_name=%r | cognitive_load_score=%s | "
+        "signal_summary=%r | original_field_type=%r | "
+        "dom_context_chars=%d | field_value_lengths=%s",
+        field_name,
+        cognitive_load_score,
+        signal_summary,
+        original_field_type,
+        len(sanitized_dom),
+        field_value_lengths,
+    )
+
+    total_attempts = max_retries + 1
+    last_exc = None
+
+    for attempt in range(1, total_attempts + 1):
+        chunks = []
+        streamed_chars = 0
+
+        try:
+            async for chunk in chain.astream(prompt_inputs):
+                if chunk is None:
+                    continue
+
+                if isinstance(chunk, str):
+                    chunk_text = chunk
+                elif hasattr(chunk, "content"):
+                    chunk_text = chunk.content or ""
+                else:
+                    chunk_text = str(chunk)
+
+                if not chunk_text:
+                    continue
+
+                chunks.append(chunk_text)
+                streamed_chars += len(chunk_text)
+
+                yield chunk_text
+
+        except Exception as e:
+            last_exc = e
+            is_rate_limit = (
+                groq is not None
+                and isinstance(e, getattr(groq, "RateLimitError", ()))
+            )
+            is_timeout = "timeout" in str(e).lower()
+
+            logger.warning(
+                "stream_component attempt %d/%d: LLM stream failed "
+                "(%s): %s",
+                attempt,
+                total_attempts,
+                type(e).__name__,
+                e,
+            )
+
+            if attempt == total_attempts:
+                kind = (
+                    "rate limit"
+                    if is_rate_limit
+                    else "timeout"
+                    if is_timeout
+                    else "API error"
+                )
+                raise GenerationError(
+                    f"LLM streaming failed after {attempt} attempt(s) "
+                    f"({kind}): {e}"
+                ) from e
+
+            continue
+
+        raw_output = "".join(chunks)
+
+        logger.info(
+            "STREAM RESPONSE COMPLETE | field_name=%r | attempt=%d/%d | "
+            "length=%d chars",
+            field_name,
+            attempt,
+            total_attempts,
+            streamed_chars,
+        )
+
+        if not raw_output or not raw_output.strip():
+            last_exc = EmptyOutputError("Model returned an empty response")
+            logger.warning(
+                "stream_component attempt %d/%d: empty output, retrying",
+                attempt,
+                total_attempts,
+            )
+
+            if attempt == total_attempts:
+                raise last_exc
+
+            continue
+
+        try:
+            code = _extract_code_block(raw_output)
+        except MalformedComponentError as e:
+            last_exc = e
+            logger.warning(
+                "stream_component attempt %d/%d: extraction failed (%s), retrying",
+                attempt,
+                total_attempts,
+                e,
+            )
+
+            if attempt == total_attempts:
+                raise
+
+            continue
+
+        if not code:
+            last_exc = EmptyOutputError("No usable code found in model output")
+            logger.warning(
+                "stream_component attempt %d/%d: no code extracted, retrying",
+                attempt,
+                total_attempts,
+            )
+
+            if attempt == total_attempts:
+                raise last_exc
+
+            continue
+
+        try:
+            validate_component_code(code)
+
+        except SyntaxValidationError as e:
+            last_exc = MalformedComponentError(
+                f"Generated code has syntax errors: {e.errors}"
+            )
+
+            logger.warning(
+                "stream_component attempt %d/%d: syntax validation failed (%s), retrying",
+                attempt,
+                total_attempts,
+                e.errors,
+            )
+
+            if attempt == total_attempts:
+                raise last_exc from e
+
+            continue
+
+        except SecurityValidationError as e:
+            last_exc = MalformedComponentError(
+                f"Generated code failed security checks: {e.flags}"
+            )
+
+            logger.warning(
+                "stream_component attempt %d/%d: security validation failed (%s), retrying",
+                attempt,
+                total_attempts,
+                e.flags,
+            )
+
+            if attempt == total_attempts:
+                raise last_exc from e
+
+            continue
+
+        except ValidatorUnavailableError as e:
+            logger.error("Babel validator unavailable: %s", e)
+            raise GenerationError(
+                "Safety validation unavailable, refusing to ship "
+                f"unverified code: {e}"
+            ) from e
+
+        try:
+            _validate_component_contract(code, field_name)
+
+        except MalformedComponentError as e:
+            last_exc = e
+
+            logger.warning(
+                "stream_component attempt %d/%d: contract validation failed (%s), retrying",
+                attempt,
+                total_attempts,
+                e,
+            )
+
+            if attempt == total_attempts:
+                raise
+
+            continue
+
+        _store_cached_component(cache_key, code)
+
+        logger.info(
+            "STREAM GENERATION SUCCEEDED | field_name=%r | "
+            "attempt=%d/%d | code_chars=%d | cache_entries=%d",
+            field_name,
+            attempt,
+            total_attempts,
+            len(code),
+            len(_component_cache),
+        )
+
+        return
+
+    raise GenerationError(
+        f"Streaming generation failed after {total_attempts} attempt(s): "
+        f"{last_exc}"
+    ) from last_exc
+
 def _extract_code_block(text):
     if not text:
         return ""

@@ -1,4 +1,5 @@
 import pytest
+import asyncio
 from unittest.mock import patch, MagicMock
 
 import codegen
@@ -234,5 +235,126 @@ def test_cache_hit_avoids_second_llm_call(clear_component_cache):
     assert first == second
     fake_chain.invoke.assert_called_once()
     
+
+# ---------------------------------------------------------------------------
+# Week 4: Streaming tests
+# ---------------------------------------------------------------------------
+
+def test_stream_component_yields_chunks(clear_component_cache):
+    chunks = [
+        "```tsx\n",
+        "export default function Generated() {\n",
+        "  return <div>Hello</div>;\n",
+        "}\n",
+        "```",
+    ]
+
+    class FakeStreamingChain:
+        async def astream(self, prompt_inputs):
+            for chunk in chunks:
+                yield chunk
+
+    async def collect_chunks():
+        received = []
+
+        async for chunk in codegen.stream_component(
+            cognitive_load_score=82,
+            field_name="Annual Income",
+            signal_summary="hesitant",
+            original_field_type="numeric input",
+        ):
+            received.append(chunk)
+
+        return received
+
+    fake_chain = FakeStreamingChain()
+
+    with patch("codegen._get_chain", return_value=fake_chain):
+        with patch.dict("os.environ", {"GROQ_API_KEY": "test-key"}):
+            received = asyncio.run(collect_chunks())
+
+    assert received == chunks
+
+
+def test_stream_component_caches_validated_result(clear_component_cache):
+    chunks = [
+        "```tsx\n",
+        "export default function Generated() {\n",
+        "  return <div>Hello</div>;\n",
+        "}\n",
+        "```",
+    ]
+
+    class FakeStreamingChain:
+        def __init__(self):
+            self.calls = 0
+
+        async def astream(self, prompt_inputs):
+            self.calls += 1
+
+            for chunk in chunks:
+                yield chunk
+
+    async def collect_chunks():
+        received = []
+
+        async for chunk in codegen.stream_component(
+            cognitive_load_score=82,
+            field_name="Annual Income",
+            signal_summary="hesitant",
+            original_field_type="numeric input",
+        ):
+            received.append(chunk)
+
+        return received
+
+    fake_chain = FakeStreamingChain()
+
+    with patch("codegen._get_chain", return_value=fake_chain):
+        with patch.dict("os.environ", {"GROQ_API_KEY": "test-key"}):
+            first = asyncio.run(collect_chunks())
+            second = asyncio.run(collect_chunks())
+
+    assert first == chunks
+    assert second == [
+        "export default function Generated() {\n"
+        "  return <div>Hello</div>;\n"
+        "}"
+    ]
+    assert fake_chain.calls == 1
+
+
+def test_stream_component_does_not_cache_invalid_code(clear_component_cache):
+    chunks = [
+        "```tsx\n",
+        "export default function Broken() {\n",
+        "  return <div>\n",
+        "```",
+    ]
+
+    class FakeStreamingChain:
+        async def astream(self, prompt_inputs):
+            for chunk in chunks:
+                yield chunk
+
+    async def consume_stream():
+        async for _ in codegen.stream_component(
+            cognitive_load_score=82,
+            field_name="Annual Income",
+            signal_summary="hesitant",
+            original_field_type="numeric input",
+        ):
+            pass
+
+    fake_chain = FakeStreamingChain()
+
+    with patch("codegen._get_chain", return_value=fake_chain):
+        with patch.dict("os.environ", {"GROQ_API_KEY": "test-key"}):
+            with pytest.raises(codegen.MalformedComponentError):
+                asyncio.run(consume_stream())
+
+    assert len(codegen._component_cache) == 0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
