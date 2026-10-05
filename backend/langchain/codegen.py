@@ -1,6 +1,8 @@
 import os
 import re
 import logging
+import hashlib
+import json
 from dataclasses import dataclass
 
 from dotenv import load_dotenv
@@ -52,9 +54,47 @@ if not logger.handlers:
 MODEL_NAME = os.getenv("CODEGEN_MODEL", "llama-3.3-70b-versatile")
 TEMPERATURE = 0.3
 MAX_OUTPUT_TOKENS = 3072
+CACHE_MAX_ENTRIES = 100
+CACHE_TTL_SECONDS = 300
+CACHE_VERSION = "week4-v1"
+
+_component_cache = {}
+
+
+def _build_cache_key(
+    cognitive_load_score,
+    field_name,
+    signal_summary,
+    original_field_type,
+    sanitized_dom,
+    sanitized_values,
+):
+    """Build a deterministic cache key from generation-affecting inputs."""
+    cache_payload = {
+        "cache_version": CACHE_VERSION,
+        "model": MODEL_NAME,
+        "temperature": TEMPERATURE,
+        "max_output_tokens": MAX_OUTPUT_TOKENS,
+        "design_system": DESIGN_SYSTEM_CONTEXT,
+        "cognitive_load_score": cognitive_load_score,
+        "field_name": field_name,
+        "signal_summary": signal_summary,
+        "original_field_type": original_field_type,
+        "sanitized_dom": sanitized_dom,
+        "sanitized_values": sanitized_values,
+    }
+
+    payload = json.dumps(
+        cache_payload,
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
 
 REQUIRED_ENV_VARS = ("GROQ_API_KEY",)
-
 
 class CodegenError(Exception):
     """Base exception for codegen failures."""
@@ -122,7 +162,39 @@ def _validate_inputs(
 
     if errors:
         raise InvalidInputError("; ".join(errors))
+def _get_cached_component(cache_key):
+    """Return a non-expired cached component, or None on cache miss."""
+    entry = _component_cache.get(cache_key)
 
+    if entry is None:
+        return None
+
+    cached_at, component_code = entry
+
+    import time
+
+    if time.time() - cached_at > CACHE_TTL_SECONDS:
+        _component_cache.pop(cache_key, None)
+        return None
+
+    return component_code
+
+
+def _store_cached_component(cache_key, component_code):
+    """Store a validated component and enforce the cache size limit."""
+    import time
+
+    if len(_component_cache) >= CACHE_MAX_ENTRIES:
+        oldest_key = min(
+            _component_cache,
+            key=lambda key: _component_cache[key][0],
+        )
+        _component_cache.pop(oldest_key, None)
+
+    _component_cache[cache_key] = (
+        time.time(),
+        component_code,
+    )
 
 def _build_chain():
     try:
@@ -214,12 +286,33 @@ def generate_component(
     sanitized_dom = sanitize_dom_snapshot(dom_snapshot)
     sanitized_values = sanitize_field_values(field_values)
 
+    cache_key = _build_cache_key(
+        cognitive_load_score=cognitive_load_score,
+        field_name=field_name,
+        signal_summary=signal_summary,
+        original_field_type=original_field_type,
+        sanitized_dom=sanitized_dom,
+        sanitized_values=sanitized_values,
+    )
+
+    cached_component = _get_cached_component(cache_key)
+
+    if cached_component is not None:
+        logger.info(
+            "CACHE HIT | field_name=%r | cache_age_limit_seconds=%s",
+            field_name,
+            CACHE_TTL_SECONDS,
+        )
+        return cached_component
+
+    logger.info("CACHE MISS | field_name=%r", field_name)
+
     context_section = build_context_section(
         dom_snapshot=sanitized_dom,
         field_values=sanitized_values,
     )
 
-    chain = _get_chain()
+    chain = _get_chain()   
 
     prompt_inputs = {
         "design_system": DESIGN_SYSTEM_CONTEXT,
@@ -342,6 +435,13 @@ def generate_component(
 
         logger.info("Generation succeeded for field_name=%r on attempt %d/%d (%d chars of code)",
                      field_name, attempt, total_attempts, len(code))
+        _store_cached_component(cache_key, code)
+
+        logger.info(
+            "CACHE STORE | field_name=%r | cache_entries=%d",
+            field_name,
+            len(_component_cache),
+        )   
         return code
 
     # Should be unreachable — every branch above either returns or raises on the last attempt.

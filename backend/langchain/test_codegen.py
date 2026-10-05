@@ -157,6 +157,82 @@ export default function MultiLine() {
     assert "export default function MultiLine()" in result
     assert result.endswith("}")
 
+# ---------------------------------------------------------------------------
+# Week 4: Cache tests
+# ---------------------------------------------------------------------------
 
+@pytest.fixture(autouse=False)
+def clear_component_cache():
+    codegen._component_cache.clear()
+    yield
+    codegen._component_cache.clear()
+
+
+def test_cache_key_is_deterministic():
+    key1 = codegen._build_cache_key(
+        cognitive_load_score=82,
+        field_name="Annual Income",
+        signal_summary="hesitant",
+        original_field_type="numeric input",
+        sanitized_dom="",
+        sanitized_values={},
+    )
+
+    key2 = codegen._build_cache_key(
+        cognitive_load_score=82,
+        field_name="Annual Income",
+        signal_summary="hesitant",
+        original_field_type="numeric input",
+        sanitized_dom="",
+        sanitized_values={},
+    )
+
+    assert key1 == key2
+
+
+def test_cache_key_changes_when_input_changes():
+    key1 = codegen._build_cache_key(
+        cognitive_load_score=82,
+        field_name="Annual Income",
+        signal_summary="hesitant",
+        original_field_type="numeric input",
+        sanitized_dom="",
+        sanitized_values={},
+    )
+
+    key2 = codegen._build_cache_key(
+        cognitive_load_score=83,
+        field_name="Annual Income",
+        signal_summary="hesitant",
+        original_field_type="numeric input",
+        sanitized_dom="",
+        sanitized_values={},
+    )
+
+    assert key1 != key2
+
+
+def test_cache_hit_avoids_second_llm_call(clear_component_cache):
+    fake_chain = _mock_chain(MOCK_INCOME_RESPONSE)
+
+    with patch("codegen._get_chain", return_value=fake_chain):
+        with patch.dict("os.environ", {"GROQ_API_KEY": "test-key"}):
+            first = generate_component(
+                cognitive_load_score=82,
+                field_name="Annual Income",
+                signal_summary="hesitant",
+                original_field_type="numeric input",
+            )
+
+            second = generate_component(
+                cognitive_load_score=82,
+                field_name="Annual Income",
+                signal_summary="hesitant",
+                original_field_type="numeric input",
+            )
+
+    assert first == second
+    fake_chain.invoke.assert_called_once()
+    
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
