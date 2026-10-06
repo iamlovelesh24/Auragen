@@ -2,3 +2,5 @@
 audit_reports/
 auragen_codegen.log
 babel_validator/node_modules/
+
+babel_validator/.render_tmp/

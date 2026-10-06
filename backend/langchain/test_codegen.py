@@ -1,4 +1,5 @@
 import pytest
+import asyncio
 from unittest.mock import patch, MagicMock
 
 import codegen
@@ -156,6 +157,203 @@ export default function MultiLine() {
     assert result.startswith("import React")
     assert "export default function MultiLine()" in result
     assert result.endswith("}")
+
+# ---------------------------------------------------------------------------
+# Week 4: Cache tests
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(autouse=False)
+def clear_component_cache():
+    codegen._component_cache.clear()
+    yield
+    codegen._component_cache.clear()
+
+
+def test_cache_key_is_deterministic():
+    key1 = codegen._build_cache_key(
+        cognitive_load_score=82,
+        field_name="Annual Income",
+        signal_summary="hesitant",
+        original_field_type="numeric input",
+        sanitized_dom="",
+        sanitized_values={},
+    )
+
+    key2 = codegen._build_cache_key(
+        cognitive_load_score=82,
+        field_name="Annual Income",
+        signal_summary="hesitant",
+        original_field_type="numeric input",
+        sanitized_dom="",
+        sanitized_values={},
+    )
+
+    assert key1 == key2
+
+
+def test_cache_key_changes_when_input_changes():
+    key1 = codegen._build_cache_key(
+        cognitive_load_score=82,
+        field_name="Annual Income",
+        signal_summary="hesitant",
+        original_field_type="numeric input",
+        sanitized_dom="",
+        sanitized_values={},
+    )
+
+    key2 = codegen._build_cache_key(
+        cognitive_load_score=83,
+        field_name="Annual Income",
+        signal_summary="hesitant",
+        original_field_type="numeric input",
+        sanitized_dom="",
+        sanitized_values={},
+    )
+
+    assert key1 != key2
+
+
+def test_cache_hit_avoids_second_llm_call(clear_component_cache):
+    fake_chain = _mock_chain(MOCK_INCOME_RESPONSE)
+
+    with patch("codegen._get_chain", return_value=fake_chain):
+        with patch.dict("os.environ", {"GROQ_API_KEY": "test-key"}):
+            first = generate_component(
+                cognitive_load_score=82,
+                field_name="Annual Income",
+                signal_summary="hesitant",
+                original_field_type="numeric input",
+            )
+
+            second = generate_component(
+                cognitive_load_score=82,
+                field_name="Annual Income",
+                signal_summary="hesitant",
+                original_field_type="numeric input",
+            )
+
+    assert first == second
+    fake_chain.invoke.assert_called_once()
+    
+
+# ---------------------------------------------------------------------------
+# Week 4: Streaming tests
+# ---------------------------------------------------------------------------
+
+def test_stream_component_yields_chunks(clear_component_cache):
+    chunks = [
+        "```tsx\n",
+        "export default function Generated() {\n",
+        "  return <div>Hello</div>;\n",
+        "}\n",
+        "```",
+    ]
+
+    class FakeStreamingChain:
+        async def astream(self, prompt_inputs):
+            for chunk in chunks:
+                yield chunk
+
+    async def collect_chunks():
+        received = []
+
+        async for chunk in codegen.stream_component(
+            cognitive_load_score=82,
+            field_name="Annual Income",
+            signal_summary="hesitant",
+            original_field_type="numeric input",
+        ):
+            received.append(chunk)
+
+        return received
+
+    fake_chain = FakeStreamingChain()
+
+    with patch("codegen._get_chain", return_value=fake_chain):
+        with patch.dict("os.environ", {"GROQ_API_KEY": "test-key"}):
+            received = asyncio.run(collect_chunks())
+
+    assert received == chunks
+
+
+def test_stream_component_caches_validated_result(clear_component_cache):
+    chunks = [
+        "```tsx\n",
+        "export default function Generated() {\n",
+        "  return <div>Hello</div>;\n",
+        "}\n",
+        "```",
+    ]
+
+    class FakeStreamingChain:
+        def __init__(self):
+            self.calls = 0
+
+        async def astream(self, prompt_inputs):
+            self.calls += 1
+
+            for chunk in chunks:
+                yield chunk
+
+    async def collect_chunks():
+        received = []
+
+        async for chunk in codegen.stream_component(
+            cognitive_load_score=82,
+            field_name="Annual Income",
+            signal_summary="hesitant",
+            original_field_type="numeric input",
+        ):
+            received.append(chunk)
+
+        return received
+
+    fake_chain = FakeStreamingChain()
+
+    with patch("codegen._get_chain", return_value=fake_chain):
+        with patch.dict("os.environ", {"GROQ_API_KEY": "test-key"}):
+            first = asyncio.run(collect_chunks())
+            second = asyncio.run(collect_chunks())
+
+    assert first == chunks
+    assert second == [
+        "export default function Generated() {\n"
+        "  return <div>Hello</div>;\n"
+        "}"
+    ]
+    assert fake_chain.calls == 1
+
+
+def test_stream_component_does_not_cache_invalid_code(clear_component_cache):
+    chunks = [
+        "```tsx\n",
+        "export default function Broken() {\n",
+        "  return <div>\n",
+        "```",
+    ]
+
+    class FakeStreamingChain:
+        async def astream(self, prompt_inputs):
+            for chunk in chunks:
+                yield chunk
+
+    async def consume_stream():
+        async for _ in codegen.stream_component(
+            cognitive_load_score=82,
+            field_name="Annual Income",
+            signal_summary="hesitant",
+            original_field_type="numeric input",
+        ):
+            pass
+
+    fake_chain = FakeStreamingChain()
+
+    with patch("codegen._get_chain", return_value=fake_chain):
+        with patch.dict("os.environ", {"GROQ_API_KEY": "test-key"}):
+            with pytest.raises(codegen.MalformedComponentError):
+                asyncio.run(consume_stream())
+
+    assert len(codegen._component_cache) == 0
 
 
 if __name__ == "__main__":

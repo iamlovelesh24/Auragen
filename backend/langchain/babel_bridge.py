@@ -30,10 +30,13 @@ def validate_component_code(tsx_code: str) -> dict:
 
     try:
         proc = subprocess.run(
-            ["node", str(NODE_SCRIPT)],
-            input=tsx_code, capture_output=True, text=True,
-            timeout=NODE_TIMEOUT_SECONDS,
-        )
+    ["node", str(NODE_SCRIPT)],
+    input=tsx_code,
+    capture_output=True,
+    text=True,
+    encoding="utf-8",
+    timeout=NODE_TIMEOUT_SECONDS,
+)
     except subprocess.TimeoutExpired as exc:
         raise ValidatorUnavailableError("Babel validator timed out") from exc
     except FileNotFoundError as exc:
