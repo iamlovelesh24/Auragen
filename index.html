@@ -52,6 +52,76 @@
 
 
     <!-- =====================================================
+         WEEK 3 - CONTEXT AWARENESS DEMO
+         ===================================================== -->
+
+    <h2>Context Awareness Demo</h2>
+
+    <p>
+        This section demonstrates how AuraGen captures the
+        user's current UI state and entered information
+        before a UI transformation.
+    </p>
+
+
+    <label for="userName">
+        User Name:
+    </label>
+
+    <input
+        id="userName"
+        name="userName"
+        type="text"
+        placeholder="Enter your name"
+    >
+
+
+    <br><br>
+
+
+    <label for="accountType">
+        Account Type:
+    </label>
+
+    <select
+        id="accountType"
+        name="accountType"
+    >
+
+        <option value="">
+            Select account type
+        </option>
+
+        <option value="Savings">
+            Savings
+        </option>
+
+        <option value="Current">
+            Current
+        </option>
+
+    </select>
+
+
+    <br><br>
+
+
+    <label for="userRequest">
+        Request:
+    </label>
+
+    <br>
+
+    <textarea
+        id="userRequest"
+        name="userRequest"
+        rows="4"
+        cols="40"
+        placeholder="Describe your request"
+    ></textarea>
+
+
+    <!-- =====================================================
          INTERACTION METRICS
          ===================================================== -->
 
@@ -247,8 +317,13 @@
          JAVASCRIPT
          ===================================================== -->
 
-<script src="script.js"></script>
-<script src="websocketTelemetry.js"></script>
+    <script src="script.js"></script>
+
+    <script src="websocketTelemetry.js"></script>
+
+    <script src="contextAwareness.js"></script>
+	
+    <script src="morphingUI.js"></script>
 
 
 </body>
