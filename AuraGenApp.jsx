@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import AuraContainer from './components/AuraContainer';
-import LLMFallbackBoundary from './components/LLMFallbackBoundary';
+import AuraContainer from "./AuraGenContainer";
+import LLMFallbackBoundary from "./LLMFallbackBoundary";
 
-export const AuraGenApp = () => {
+export default function AuraGenApp() {
   const [telemetry, setTelemetry] = useState({ score: 45, status: 'Connecting...' });
   const socketRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
@@ -31,7 +31,6 @@ export const AuraGenApp = () => {
 
     ws.onclose = () => {
       setTelemetry((prev) => ({ ...prev, status: 'Disconnected (Retrying...)' }));
-      // Exponential backoff strategy
       const delay = Math.min(1000 * Math.pow(2, retryCount.current), 10000);
       retryCount.current += 1;
       reconnectTimeoutRef.current = setTimeout(connectWebSocket, delay);
@@ -62,15 +61,10 @@ export const AuraGenApp = () => {
         <AuraContainer score={telemetry.score}>
           <h3>Current Workspace State</h3>
           <p>
-            Cognitive Threshold Level:{' '}
-            <strong>
-              {telemetry.score > 70 ? 'High Load (Focused Mode)' : 'Normal Operations'}
-            </strong>
+            Cognitive Threshold Level: <strong>{telemetry.score > 70 ? 'High Load (Focused Mode)' : 'Normal Operations'}</strong>
           </p>
         </AuraContainer>
       </LLMFallbackBoundary>
     </div>
   );
-};
-
-export default AuraGenApp;
+}
