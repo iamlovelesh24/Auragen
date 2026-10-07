@@ -107,7 +107,11 @@ export default function AuraGenApp() {
             Cognitive Threshold Level:{' '}
             <strong>{telemetry.isOverloaded ? 'High Load (Focused Mode)' : 'Normal Operations'}</strong>
           </p>
-          <GeneratedPanel isOverloaded={telemetry.isOverloaded} />
+          <GeneratedPanel 
+            isOverloaded={telemetry.isOverloaded} 
+            fieldName="email" 
+            originalFieldType="text" 
+          />
         </AuraContainer>
       </LLMFallbackBoundary>
     </div>
