@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AuraContainer from "./AuraGenContainer";
 import LLMFallbackBoundary from "./LLMFallbackBoundary";
+import GeneratedPanel from "./src/GeneratedPanel";
 
 export default function AuraGenApp() {
   const [telemetry, setTelemetry] = useState({ score: 45, status: 'Connecting...' });
@@ -63,6 +64,7 @@ export default function AuraGenApp() {
           <p>
             Cognitive Threshold Level: <strong>{telemetry.score > 70 ? 'High Load (Focused Mode)' : 'Normal Operations'}</strong>
           </p>
+          <GeneratedPanel score={telemetry.score} />
         </AuraContainer>
       </LLMFallbackBoundary>
     </div>
