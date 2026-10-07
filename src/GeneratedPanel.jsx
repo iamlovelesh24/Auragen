@@ -18,7 +18,7 @@ function useTailwindCdn() {
 function compileTsx(tsx) {
   const { code } = Babel.transform(tsx, {
     filename: "Generated.tsx",
-    presets: ["typescript", "react"],
+    presets: ["typescript", ["react", { runtime: "classic" }]],
     plugins: ["transform-modules-commonjs"],
   });
   const module = { exports: {} };
