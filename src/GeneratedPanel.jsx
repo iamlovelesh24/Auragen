@@ -4,6 +4,12 @@ import LLMFallbackBoundary from "../LLMFallbackBoundary";
 
 const API = "http://localhost:8000/generate";
 
+// The backend reads the score as 0-100. The telemetry server's raw score uses a different
+// scale (overload threshold 7.0) and changes on every event, so we send two fixed values.
+// Fixed values also keep the backend cache key stable: only two entries exist.
+const SCORE_NORMAL = 20;
+const SCORE_OVERLOADED = 85;
+
 // Demo only: generated code uses Tailwind classes, so load the Tailwind CDN.
 function useTailwindCdn() {
   useEffect(() => {
@@ -35,7 +41,7 @@ function compileTsx(tsx) {
   return module.exports.default;
 }
 
-export default function GeneratedPanel({ score }) {
+export default function GeneratedPanel({ isOverloaded }) {
   useTailwindCdn();
   const [status, setStatus] = useState("idle");
   const [Comp, setComp] = useState(null);
@@ -65,10 +71,11 @@ export default function GeneratedPanel({ score }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cognitive_load_score: score,
+          cognitive_load_score: isOverloaded ? SCORE_OVERLOADED : SCORE_NORMAL,
           field_name: "email",
-          signal_summary:
-            score > 70 ? "high cognitive load, long hesitation" : "normal activity",
+          signal_summary: isOverloaded
+            ? "high cognitive load, long hesitation"
+            : "normal activity",
           original_field_type: "text",
         }),
       });
