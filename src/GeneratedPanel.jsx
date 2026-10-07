@@ -41,7 +41,7 @@ function compileTsx(tsx) {
   return module.exports.default;
 }
 
-export default function GeneratedPanel({ isOverloaded }) {
+export default function GeneratedPanel({ isOverloaded, fieldName = "email", originalFieldType = "text" }) {
   useTailwindCdn();
   const [status, setStatus] = useState("idle");
   const [Comp, setComp] = useState(null);
@@ -72,11 +72,11 @@ export default function GeneratedPanel({ isOverloaded }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           cognitive_load_score: isOverloaded ? SCORE_OVERLOADED : SCORE_NORMAL,
-          field_name: "email",
+          field_name: fieldName,
           signal_summary: isOverloaded
-            ? "high cognitive load, long hesitation"
-            : "normal activity",
-          original_field_type: "text",
+            ? 'high cognitive load on ${fieldName}, long hesitation'
+            : 'normal activity on ${fieldName}',
+          original_field_type: originalfieldType,
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
