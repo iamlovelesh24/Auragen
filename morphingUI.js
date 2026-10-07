@@ -34,10 +34,18 @@ function createAuraGenCacheKey(context) {
 
     try {
 
+        const userInput =
+            context.userInput || {};
+
         return JSON.stringify({
-            userInput: context.userInput || {},
-            activeElement: context.activeElement || null,
-            dom: context.dom || context.domMetadata || {}
+            userName:
+                userInput.userName?.value || "",
+
+            accountType:
+                userInput.accountType?.value || "",
+
+            userRequest:
+                userInput.userRequest?.value || ""
         });
 
     } catch (error) {
@@ -45,7 +53,6 @@ function createAuraGenCacheKey(context) {
         return null;
     }
 }
-
 
 // ============================================================
 // WEEK 4 - CACHE MANAGEMENT
