@@ -1,9 +1,17 @@
 // ============================================================
-// AuraGen - UI Morphing
-// Member 2 - Week 3
+// AuraGen - UI Morphing + Week 4 Optimization
+// Member 2 - Week 3 + Week 4
 //
-// Provides a smooth transition from the existing static UI
-// to a generated/adaptive UI while preserving user context.
+// Week 3:
+// - Context-aware UI morphing
+// - User input preservation
+// - Smooth UI transition
+//
+// Week 4:
+// - Context-based caching
+// - Latency measurement
+// - Graceful fallback
+// - Existing UI preservation on failure
 // ============================================================
 
 
@@ -12,6 +20,67 @@
 // ============================================================
 
 const AURAGEN_MORPH_DURATION = 500;
+
+const AURAGEN_CACHE_LIMIT = 10;
+
+const auraGenUICache = new Map();
+
+
+// ============================================================
+// WEEK 4 - CACHE KEY
+// ============================================================
+
+function createAuraGenCacheKey(context) {
+
+    try {
+
+        return JSON.stringify({
+            userInput: context.userInput || {},
+            activeElement: context.activeElement || null,
+            dom: context.dom || context.domMetadata || {}
+        });
+
+    } catch (error) {
+
+        return null;
+    }
+}
+
+
+// ============================================================
+// WEEK 4 - CACHE MANAGEMENT
+// ============================================================
+
+function getCachedAuraGenContext(cacheKey) {
+
+    if (!cacheKey) {
+        return null;
+    }
+
+    return auraGenUICache.get(cacheKey) || null;
+}
+
+
+function cacheAuraGenContext(cacheKey, context) {
+
+    if (!cacheKey || !context) {
+        return;
+    }
+
+    // Keep cache lightweight.
+    if (auraGenUICache.size >= AURAGEN_CACHE_LIMIT) {
+
+        const firstKey =
+            auraGenUICache.keys().next().value;
+
+        auraGenUICache.delete(firstKey);
+    }
+
+    auraGenUICache.set(
+        cacheKey,
+        context
+    );
+}
 
 
 // ============================================================
@@ -75,7 +144,7 @@ function createGeneratedUI(context) {
     name.textContent =
         "User Name: " +
         (
-            context.userInput.userName?.value ||
+            context.userInput?.userName?.value ||
             ""
         );
 
@@ -88,7 +157,7 @@ function createGeneratedUI(context) {
     account.textContent =
         "Account Type: " +
         (
-            context.userInput.accountType?.value ||
+            context.userInput?.accountType?.value ||
             ""
         );
 
@@ -101,7 +170,7 @@ function createGeneratedUI(context) {
     request.textContent =
         "Request: " +
         (
-            context.userInput.userRequest?.value ||
+            context.userInput?.userRequest?.value ||
             ""
         );
 
@@ -113,55 +182,241 @@ function createGeneratedUI(context) {
 
 
 // ============================================================
+// WEEK 4 - FALLBACK UI
+// ============================================================
+
+function showAuraGenFallback(message) {
+
+    try {
+
+        const existingFallback =
+            document.getElementById(
+                "auraGenFallback"
+            );
+
+        if (existingFallback) {
+            existingFallback.remove();
+        }
+
+
+        const fallback =
+            document.createElement("div");
+
+        fallback.id =
+            "auraGenFallback";
+
+        fallback.style.padding =
+            "12px";
+
+        fallback.style.marginTop =
+            "10px";
+
+        fallback.style.border =
+            "1px solid #999";
+
+        fallback.style.borderRadius =
+            "8px";
+
+        fallback.style.background =
+            "#f5f5f5";
+
+        fallback.textContent =
+            message ||
+            "AuraGen could not adapt the interface. The existing interface remains available.";
+
+        document.body.appendChild(
+            fallback
+        );
+
+    } catch (fallbackError) {
+
+        console.warn(
+            "AuraGen fallback display failed.",
+            fallbackError
+        );
+    }
+}
+
+
+// ============================================================
+// WEEK 4 - MORPH PERFORMANCE METRICS
+// ============================================================
+
+let auraGenLastMorphMetrics = {
+
+    latencyMs: 0,
+
+    cacheHit: false,
+
+    status: "not_started"
+};
+
+
+// ============================================================
 // MORPH STATIC UI → GENERATED UI
 // ============================================================
 
 function morphToGeneratedUI() {
 
-    const context =
-        typeof window.getAuraGenContext === "function"
-            ? window.getAuraGenContext()
-            : null;
+    const startTime =
+        performance.now();
 
 
-    if (!context) {
+    try {
 
-        console.warn(
-            "AuraGen context is not available."
+        const context =
+            typeof window.getAuraGenContext ===
+            "function"
+                ? window.getAuraGenContext()
+                : null;
+
+
+        if (!context) {
+
+            throw new Error(
+                "AuraGen context is not available."
+            );
+        }
+
+
+        const cacheKey =
+            createAuraGenCacheKey(
+                context
+            );
+
+
+        let contextToRender =
+            getCachedAuraGenContext(
+                cacheKey
+            );
+
+
+        const cacheHit =
+            !!contextToRender;
+
+
+        if (!contextToRender) {
+
+            contextToRender =
+                context;
+
+            cacheAuraGenContext(
+                cacheKey,
+                contextToRender
+            );
+        }
+
+
+        // Remove only the previous generated UI.
+        // The original/static UI remains untouched.
+        const previousUI =
+            document.getElementById(
+                "auraGenGeneratedUI"
+            );
+
+        if (previousUI) {
+            previousUI.remove();
+        }
+
+
+        const generatedUI =
+            createGeneratedUI(
+                contextToRender
+            );
+
+
+        document.body.appendChild(
+            generatedUI
         );
 
-        return;
+
+        // Allow browser to render initial state.
+        requestAnimationFrame(function () {
+
+            generatedUI.style.opacity =
+                "1";
+
+            generatedUI.style.transform =
+                "translateY(0) scale(1)";
+        });
+
+
+        const endTime =
+            performance.now();
+
+
+        const latency =
+            Number(
+                (endTime - startTime).toFixed(2)
+            );
+
+
+        auraGenLastMorphMetrics = {
+
+            latencyMs: latency,
+
+            cacheHit: cacheHit,
+
+            status: "success"
+        };
+
+
+        console.log(
+            "AuraGen Week 4 Performance:",
+            {
+                latencyMs: latency,
+                cacheHit: cacheHit,
+                status: "success"
+            }
+        );
+
+
+        console.log(
+            cacheHit
+                ? "AuraGen cache hit - reused existing context."
+                : "AuraGen cache miss - context stored for reuse."
+        );
+
+
+        console.log(
+            "AuraGen UI morph completed.",
+            contextToRender
+        );
+
+    } catch (error) {
+
+        const endTime =
+            performance.now();
+
+
+        const latency =
+            Number(
+                (endTime - startTime).toFixed(2)
+            );
+
+
+        auraGenLastMorphMetrics = {
+
+            latencyMs: latency,
+
+            cacheHit: false,
+
+            status: "fallback"
+        };
+
+
+        console.error(
+            "AuraGen UI morph failed. Existing UI preserved.",
+            error
+        );
+
+
+        // Graceful degradation:
+        // Do not remove or modify the existing UI.
+        showAuraGenFallback(
+            "AuraGen could not adapt the interface right now. Your existing interface remains available."
+        );
     }
-
-
-    const existingUI =
-        document.body;
-
-
-    const generatedUI =
-        createGeneratedUI(context);
-
-
-    existingUI.appendChild(
-        generatedUI
-    );
-
-
-    // Allow browser to render initial state
-    requestAnimationFrame(function () {
-
-        generatedUI.style.opacity =
-            "1";
-
-        generatedUI.style.transform =
-            "translateY(0) scale(1)";
-    });
-
-
-    console.log(
-        "AuraGen UI morph completed.",
-        context
-    );
 }
 
 
@@ -171,31 +426,55 @@ function morphToGeneratedUI() {
 
 function restoreAuraGenContext() {
 
-    if (
-        typeof window.getAuraGenContext !==
-        "function"
-    ) {
-        return;
-    }
+    try {
+
+        if (
+            typeof window.getAuraGenContext !==
+            "function"
+        ) {
+            return;
+        }
 
 
-    const context =
-        window.getAuraGenContext();
+        const context =
+            window.getAuraGenContext();
 
 
-    if (
-        typeof window.restoreAuraGenInput ===
-        "function"
-    ) {
+        if (
+            typeof window.restoreAuraGenInput ===
+            "function"
+        ) {
 
-        window.restoreAuraGenInput(
-            context.userInput
+            window.restoreAuraGenInput(
+                context.userInput
+            );
+        }
+
+
+        console.log(
+            "AuraGen user context restored."
+        );
+
+    } catch (error) {
+
+        console.warn(
+            "AuraGen context restoration failed.",
+            error
         );
     }
+}
 
+
+// ============================================================
+// WEEK 4 - CACHE CONTROL
+// ============================================================
+
+function clearAuraGenCache() {
+
+    auraGenUICache.clear();
 
     console.log(
-        "AuraGen user context restored."
+        "AuraGen UI cache cleared."
     );
 }
 
@@ -210,7 +489,19 @@ window.morphToGeneratedUI =
 window.restoreAuraGenContext =
     restoreAuraGenContext;
 
+window.clearAuraGenCache =
+    clearAuraGenCache;
+
+window.getAuraGenMorphMetrics =
+    function () {
+        return auraGenLastMorphMetrics;
+    };
+
 
 console.log(
     "AuraGen UI morphing module initialized."
+);
+
+console.log(
+    "AuraGen Week 4 optimization enabled: caching, latency measurement and graceful fallback."
 );
