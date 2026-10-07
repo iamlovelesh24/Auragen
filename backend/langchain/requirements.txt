@@ -2,3 +2,5 @@ langchain
 langchain-openai
 langchain-core
 python-dotenv
+fastapi==0.142.2
+uvicorn==0.54.0
