@@ -1,7 +1,7 @@
 import React from 'react';
 
 export default function AuraContainer({ score, children }) {
-  const isHighLoad = score > 70;
+  const isHighLoad = score >= 80;
   
   return (
     <div style={{
