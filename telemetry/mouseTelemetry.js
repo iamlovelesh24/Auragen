@@ -162,3 +162,8 @@ function getMouseTelemetry() {
 console.log(
     "Manish mouse telemetry initialized."
 );
+
+if (typeof window !== "undefined") {
+    window.startMouseTelemetry = startMouseTelemetry;
+    window.getMouseTelemetry = getMouseTelemetry;
+}
