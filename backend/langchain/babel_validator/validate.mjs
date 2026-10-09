@@ -10,7 +10,20 @@ const ALLOWED_IMPORT_SOURCES = new Set([
   '@/design-system', // TODO: point this at your real design-system import path
 ]);
 
-const DISALLOWED_GLOBALS = new Set(['eval', 'require', 'importScripts']);
+const DISALLOWED_GLOBALS = new Set(['eval', 'require', 'importScripts', 'Function']);
+
+// Browser APIs a generated component must never reference (network, storage, navigation).
+const FORBIDDEN_GLOBAL_NAMES = new Set([
+  'eval', 'require', 'importScripts',
+  'fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource', 'Worker', 'SharedWorker',
+  'localStorage', 'sessionStorage', 'indexedDB', 'location',
+]);
+
+const WINDOW_LIKE = new Set(['window', 'globalThis', 'self', 'top', 'parent', 'frames']);
+const FORBIDDEN_WINDOW_PROPS = new Set([...FORBIDDEN_GLOBAL_NAMES, 'open', 'postMessage']);
+const FORBIDDEN_DOCUMENT_PROPS = new Set(['cookie', 'write', 'writeln', 'domain', 'location']);
+const FORBIDDEN_NAVIGATOR_PROPS = new Set(['sendBeacon']);
+const FORBIDDEN_HTML_SINKS = new Set(['innerHTML', 'outerHTML']);
 
 function readStdin() {
   return new Promise((resolve, reject) => {
@@ -24,6 +37,17 @@ function readStdin() {
 
 const out = (valid, stage, errors = [], securityFlags = []) =>
   console.log(JSON.stringify({ valid, stage, errors, securityFlags }));
+
+// Property name of a member expression, or null if it cannot be known statically.
+function propName(node) {
+  const p = node.property;
+  if (!node.computed && p.type === 'Identifier') return p.name;
+  if (node.computed && p.type === 'StringLiteral') return p.value;
+  if (node.computed && p.type === 'TemplateLiteral' && p.expressions.length === 0) {
+    return p.quasis[0].value.cooked;
+  }
+  return null;
+}
 
 async function main() {
   const code = await readStdin();
@@ -39,6 +63,8 @@ async function main() {
   }
 
   const flags = [];
+  const flag = (type, detail, node) =>
+    flags.push({ type, detail, line: node?.loc?.start.line });
   let hasDefaultExport = false;
 
   traverse(ast, {
@@ -51,25 +77,83 @@ async function main() {
       }
     },
 
+    // Any reference to a forbidden global that is not a local variable.
+    Identifier(path) {
+      const name = path.node.name;
+      if (!FORBIDDEN_GLOBAL_NAMES.has(name)) return;
+      if (!path.isReferencedIdentifier()) return;
+      if (path.scope.getBinding(name)) return; // locally declared, not the global
+      flag('forbidden_global', name, path.node);
+    },
+
     CallExpression(path) {
       const callee = path.node.callee;
+
+      // Dynamic import()
+      if (callee.type === 'Import') {
+        flag('dynamic_import', 'import()', path.node);
+        return;
+      }
+
       const name = callee.type === 'Identifier' ? callee.name : null;
       if (name && DISALLOWED_GLOBALS.has(name)) {
-        flags.push({ type: 'disallowed_call', detail: name, line: path.node.loc?.start.line });
+        flag('disallowed_call', name, path.node);
       }
       if (name === 'fetch') {
-        flags.push({ type: 'network_call', detail: 'fetch', line: path.node.loc?.start.line });
+        flag('network_call', 'fetch', path.node);
       }
       if ((name === 'setTimeout' || name === 'setInterval') &&
           path.node.arguments[0]?.type === 'StringLiteral') {
-        flags.push({ type: 'string_eval', detail: name, line: path.node.loc?.start.line });
+        flag('string_eval', name, path.node);
+      }
+
+      // el.insertAdjacentHTML(...)
+      if (callee.type === 'MemberExpression' && propName(callee) === 'insertAdjacentHTML') {
+        flag('html_sink', 'insertAdjacentHTML', path.node);
       }
     },
 
     NewExpression(path) {
       const name = path.node.callee.type === 'Identifier' ? path.node.callee.name : null;
-      if (name === 'Function' || name === 'XMLHttpRequest') {
-        flags.push({ type: 'disallowed_new', detail: name, line: path.node.loc?.start.line });
+      if (name === 'Function' || name === 'XMLHttpRequest' || name === 'WebSocket' ||
+          name === 'EventSource' || name === 'Worker' || name === 'SharedWorker') {
+        flag('disallowed_new', name, path.node);
+      }
+    },
+
+    AssignmentExpression(path) {
+      const left = path.node.left;
+      // el.innerHTML = ... / el.outerHTML = ...
+      if (left.type === 'MemberExpression') {
+        const p = propName(left);
+        if (p && FORBIDDEN_HTML_SINKS.has(p)) flag('html_sink', p, path.node);
+      }
+      // location = "https://..."
+      if (left.type === 'Identifier' && left.name === 'location' &&
+          !path.scope.getBinding('location')) {
+        flag('navigation', 'location', path.node);
+      }
+    },
+
+    // const { fetch } = window;   const w = window;
+    VariableDeclarator(path) {
+      const { id, init } = path.node;
+      if (!init || init.type !== 'Identifier' || path.scope.getBinding(init.name)) return;
+      const isWin = WINDOW_LIKE.has(init.name);
+      const isDoc = init.name === 'document';
+      const isNav = init.name === 'navigator';
+      if (!isWin && !isDoc && !isNav) return;
+
+      if (id.type === 'Identifier' && isWin) {
+        flag('global_alias', init.name, path.node);
+      }
+      if (id.type === 'ObjectPattern') {
+        const set = isWin ? FORBIDDEN_WINDOW_PROPS : isDoc ? FORBIDDEN_DOCUMENT_PROPS : FORBIDDEN_NAVIGATOR_PROPS;
+        for (const prop of id.properties) {
+          if (prop.type === 'RestElement') { flag('global_destructure', 'rest', path.node); continue; }
+          const key = prop.key?.name ?? prop.key?.value;
+          if (key && set.has(key)) flag('global_destructure', key, path.node);
+        }
       }
     },
 
@@ -82,15 +166,22 @@ async function main() {
     JSXOpeningElement(path) {
       const name = path.node.name.name;
       if (['script', 'iframe', 'object', 'embed'].includes(name)) {
-        flags.push({ type: 'disallowed_element', detail: name, line: path.node.loc?.start.line });
+        flag('disallowed_element', name, path.node);
       }
     },
 
-    MemberExpression(path) {
-      const { object: obj, property: prop } = path.node;
-      if (obj.type === 'Identifier' && obj.name === 'document' &&
-          prop.type === 'Identifier' && ['cookie', 'write'].includes(prop.name)) {
-        flags.push({ type: 'disallowed_document_access', detail: prop.name, line: path.node.loc?.start.line });
+    'MemberExpression|OptionalMemberExpression'(path) {
+      const { object: obj } = path.node;
+      if (obj.type !== 'Identifier' || path.scope.getBinding(obj.name)) return;
+      const p = propName(path.node);
+
+      if (WINDOW_LIKE.has(obj.name)) {
+        if (p === null) return flag('computed_global_access', obj.name + '[...]', path.node);
+        if (FORBIDDEN_WINDOW_PROPS.has(p)) flag('disallowed_global_access', `${obj.name}.${p}`, path.node);
+      } else if (obj.name === 'document') {
+        if (p && FORBIDDEN_DOCUMENT_PROPS.has(p)) flag('disallowed_document_access', p, path.node);
+      } else if (obj.name === 'navigator') {
+        if (p && FORBIDDEN_NAVIGATOR_PROPS.has(p)) flag('disallowed_navigator_access', p, path.node);
       }
     },
   });
