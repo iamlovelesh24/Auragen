@@ -68,6 +68,15 @@ async function main() {
   let hasDefaultExport = false;
 
   traverse(ast, {
+    // Version-agnostic: depending on @babel/parser version, dynamic import() is either
+    // CallExpression{callee: Import} or a separate ImportExpression node. Catch both.
+    enter(path) {
+      const t = path.node.type;
+      if (t === 'ImportExpression' || t === 'Import') {
+        flag('dynamic_import', 'import()', path.node);
+      }
+    },
+
     ExportDefaultDeclaration() { hasDefaultExport = true; },
 
     ImportDeclaration(path) {
@@ -88,12 +97,6 @@ async function main() {
 
     CallExpression(path) {
       const callee = path.node.callee;
-
-      // Dynamic import()
-      if (callee.type === 'Import') {
-        flag('dynamic_import', 'import()', path.node);
-        return;
-      }
 
       const name = callee.type === 'Identifier' ? callee.name : null;
       if (name && DISALLOWED_GLOBALS.has(name)) {
