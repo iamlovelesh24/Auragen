@@ -112,7 +112,11 @@ export default function GeneratedPanel({ isOverloaded, fieldName = "email", orig
       setComp(() => C);
       setStatus("done");
     } catch (e) {
-      setError(String(e.message || e));
+      setError(
+  e instanceof TypeError
+    ? "Cannot connect to AuraGen's backend. Please make sure the backend server is running on port 8000, then try again."
+    : String(e.message || e)
+);
       setTimes({ ...t });
       setStatus("error");
     }

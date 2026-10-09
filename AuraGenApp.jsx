@@ -4,13 +4,13 @@ import LLMFallbackBoundary from "./LLMFallbackBoundary";
 import GeneratedPanel from "./src/GeneratedPanel";
 
 const WS_URL = 'ws://localhost:8080';
-
 export default function AuraGenApp() {
   const [telemetry, setTelemetry] = useState({
     score: 0,
     isOverloaded: false,
     status: 'Connecting...',
   });
+
   const socketRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const retryCount = useRef(0);
