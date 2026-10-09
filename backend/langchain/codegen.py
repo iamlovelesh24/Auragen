@@ -1,6 +1,8 @@
 import os
 import re
 import logging
+import hashlib
+import json
 from dataclasses import dataclass
 
 from dotenv import load_dotenv
@@ -16,7 +18,15 @@ try:
 except ImportError:
     groq = None
 
-from prompts import DESIGN_SYSTEM_CONTEXT, CODEGEN_PROMPT_TEMPLATE
+from prompts import (
+    DESIGN_SYSTEM_CONTEXT,
+    CODEGEN_PROMPT_TEMPLATE,
+    build_context_section,
+)
+from dom_sanitizer import (
+    sanitize_dom_snapshot,
+    sanitize_field_values,
+)
 from babel_bridge import (
     validate_component_code,
     SyntaxValidationError,
@@ -44,9 +54,47 @@ if not logger.handlers:
 MODEL_NAME = os.getenv("CODEGEN_MODEL", "llama-3.3-70b-versatile")
 TEMPERATURE = 0.3
 MAX_OUTPUT_TOKENS = 3072
+CACHE_MAX_ENTRIES = 100
+CACHE_TTL_SECONDS = 300
+CACHE_VERSION = "week4-v1"
+
+_component_cache = {}
+
+
+def _build_cache_key(
+    cognitive_load_score,
+    field_name,
+    signal_summary,
+    original_field_type,
+    sanitized_dom,
+    sanitized_values,
+):
+    """Build a deterministic cache key from generation-affecting inputs."""
+    cache_payload = {
+        "cache_version": CACHE_VERSION,
+        "model": MODEL_NAME,
+        "temperature": TEMPERATURE,
+        "max_output_tokens": MAX_OUTPUT_TOKENS,
+        "design_system": DESIGN_SYSTEM_CONTEXT,
+        "cognitive_load_score": cognitive_load_score,
+        "field_name": field_name,
+        "signal_summary": signal_summary,
+        "original_field_type": original_field_type,
+        "sanitized_dom": sanitized_dom,
+        "sanitized_values": sanitized_values,
+    }
+
+    payload = json.dumps(
+        cache_payload,
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
 
 REQUIRED_ENV_VARS = ("GROQ_API_KEY",)
-
 
 class CodegenError(Exception):
     """Base exception for codegen failures."""
@@ -88,7 +136,14 @@ def _check_env():
         )
 
 
-def _validate_inputs(cognitive_load_score, field_name, signal_summary, original_field_type):
+def _validate_inputs(
+    cognitive_load_score,
+    field_name,
+    signal_summary,
+    original_field_type,
+    dom_snapshot=None,
+    field_values=None,
+):
     errors = []
 
     if not isinstance(cognitive_load_score, (int, float)):
@@ -107,7 +162,39 @@ def _validate_inputs(cognitive_load_score, field_name, signal_summary, original_
 
     if errors:
         raise InvalidInputError("; ".join(errors))
+def _get_cached_component(cache_key):
+    """Return a non-expired cached component, or None on cache miss."""
+    entry = _component_cache.get(cache_key)
 
+    if entry is None:
+        return None
+
+    cached_at, component_code = entry
+
+    import time
+
+    if time.time() - cached_at > CACHE_TTL_SECONDS:
+        _component_cache.pop(cache_key, None)
+        return None
+
+    return component_code
+
+
+def _store_cached_component(cache_key, component_code):
+    """Store a validated component and enforce the cache size limit."""
+    import time
+
+    if len(_component_cache) >= CACHE_MAX_ENTRIES:
+        oldest_key = min(
+            _component_cache,
+            key=lambda key: _component_cache[key][0],
+        )
+        _component_cache.pop(oldest_key, None)
+
+    _component_cache[cache_key] = (
+        time.time(),
+        component_code,
+    )
 
 def _build_chain():
     try:
@@ -118,6 +205,7 @@ def _build_chain():
                 "field_name",
                 "signal_summary",
                 "original_field_type",
+                "context_section",
             ],
             template=CODEGEN_PROMPT_TEMPLATE,
         )
@@ -151,6 +239,8 @@ def generate_component(
     signal_summary,
     original_field_type,
     max_retries=2,
+    dom_snapshot=None,
+    field_values=None,
 ):
     """
     Generate a simplified React (.tsx) replacement component for a UI field
@@ -184,9 +274,45 @@ def generate_component(
     """
 
     _check_env()
-    _validate_inputs(cognitive_load_score, field_name, signal_summary, original_field_type)
+    _validate_inputs(
+        cognitive_load_score,
+        field_name,
+        signal_summary,
+        original_field_type,
+        dom_snapshot,
+        field_values,
+    )
 
-    chain = _get_chain()
+    sanitized_dom = sanitize_dom_snapshot(dom_snapshot)
+    sanitized_values = sanitize_field_values(field_values)
+
+    cache_key = _build_cache_key(
+        cognitive_load_score=cognitive_load_score,
+        field_name=field_name,
+        signal_summary=signal_summary,
+        original_field_type=original_field_type,
+        sanitized_dom=sanitized_dom,
+        sanitized_values=sanitized_values,
+    )
+
+    cached_component = _get_cached_component(cache_key)
+
+    if cached_component is not None:
+        logger.info(
+            "CACHE HIT | field_name=%r | cache_age_limit_seconds=%s",
+            field_name,
+            CACHE_TTL_SECONDS,
+        )
+        return cached_component
+
+    logger.info("CACHE MISS | field_name=%r", field_name)
+
+    context_section = build_context_section(
+        dom_snapshot=sanitized_dom,
+        field_values=sanitized_values,
+    )
+
+    chain = _get_chain()   
 
     prompt_inputs = {
         "design_system": DESIGN_SYSTEM_CONTEXT,
@@ -194,12 +320,24 @@ def generate_component(
         "field_name": field_name,
         "signal_summary": signal_summary,
         "original_field_type": original_field_type,
+        "context_section": context_section,
+    }
+
+    field_value_lengths = {
+        key: len(value)
+        for key, value in sanitized_values.items()
     }
 
     logger.info(
         "PROMPT SENT | field_name=%r | cognitive_load_score=%s | "
-        "signal_summary=%r | original_field_type=%r",
-        field_name, cognitive_load_score, signal_summary, original_field_type,
+        "signal_summary=%r | original_field_type=%r | "
+        "dom_context_chars=%d | field_value_lengths=%s",
+        field_name,
+        cognitive_load_score,
+        signal_summary,
+        original_field_type,
+        len(sanitized_dom),
+        field_value_lengths,
     )
     logger.debug("Full prompt inputs: %s", prompt_inputs)
 
@@ -297,11 +435,304 @@ def generate_component(
 
         logger.info("Generation succeeded for field_name=%r on attempt %d/%d (%d chars of code)",
                      field_name, attempt, total_attempts, len(code))
+        _store_cached_component(cache_key, code)
+
+        logger.info(
+            "CACHE STORE | field_name=%r | cache_entries=%d",
+            field_name,
+            len(_component_cache),
+        )   
         return code
 
     # Should be unreachable — every branch above either returns or raises on the last attempt.
     raise GenerationError(f"Generation failed after {total_attempts} attempt(s): {last_exc}") from last_exc
 
+
+
+async def stream_component(
+    cognitive_load_score,
+    field_name,
+    signal_summary,
+    original_field_type,
+    max_retries=2,
+    dom_snapshot=None,
+    field_values=None,
+):
+    """
+    Stream LLM output chunks while preserving the existing validation pipeline.
+
+    Chunks are yielded as they arrive from LangChain's async stream.
+    The complete response is accumulated and validated only after streaming
+    finishes. Only fully validated component code is stored in the cache.
+
+    Yields:
+        str: Incremental LLM output chunks.
+
+    Raises:
+        ConfigurationError, InvalidInputError, GenerationError,
+        EmptyOutputError, MalformedComponentError
+    """
+    _check_env()
+
+    _validate_inputs(
+        cognitive_load_score,
+        field_name,
+        signal_summary,
+        original_field_type,
+        dom_snapshot,
+        field_values,
+    )
+
+    sanitized_dom = sanitize_dom_snapshot(dom_snapshot)
+    sanitized_values = sanitize_field_values(field_values)
+
+    cache_key = _build_cache_key(
+        cognitive_load_score=cognitive_load_score,
+        field_name=field_name,
+        signal_summary=signal_summary,
+        original_field_type=original_field_type,
+        sanitized_dom=sanitized_dom,
+        sanitized_values=sanitized_values,
+    )
+
+    cached_component = _get_cached_component(cache_key)
+
+    if cached_component is not None:
+        logger.info(
+            "STREAM CACHE HIT | field_name=%r | cache_age_limit_seconds=%s",
+            field_name,
+            CACHE_TTL_SECONDS,
+        )
+        yield cached_component
+        return
+
+    logger.info("STREAM CACHE MISS | field_name=%r", field_name)
+
+    context_section = build_context_section(
+        dom_snapshot=sanitized_dom,
+        field_values=sanitized_values,
+    )
+
+    chain = _get_chain()
+
+    prompt_inputs = {
+        "design_system": DESIGN_SYSTEM_CONTEXT,
+        "cognitive_load_score": cognitive_load_score,
+        "field_name": field_name,
+        "signal_summary": signal_summary,
+        "original_field_type": original_field_type,
+        "context_section": context_section,
+    }
+
+    field_value_lengths = {
+        key: len(value)
+        for key, value in sanitized_values.items()
+    }
+
+    logger.info(
+        "STREAM PROMPT SENT | field_name=%r | cognitive_load_score=%s | "
+        "signal_summary=%r | original_field_type=%r | "
+        "dom_context_chars=%d | field_value_lengths=%s",
+        field_name,
+        cognitive_load_score,
+        signal_summary,
+        original_field_type,
+        len(sanitized_dom),
+        field_value_lengths,
+    )
+
+    total_attempts = max_retries + 1
+    last_exc = None
+
+    for attempt in range(1, total_attempts + 1):
+        chunks = []
+        streamed_chars = 0
+
+        try:
+            async for chunk in chain.astream(prompt_inputs):
+                if chunk is None:
+                    continue
+
+                if isinstance(chunk, str):
+                    chunk_text = chunk
+                elif hasattr(chunk, "content"):
+                    chunk_text = chunk.content or ""
+                else:
+                    chunk_text = str(chunk)
+
+                if not chunk_text:
+                    continue
+
+                chunks.append(chunk_text)
+                streamed_chars += len(chunk_text)
+
+                yield chunk_text
+
+        except Exception as e:
+            last_exc = e
+            is_rate_limit = (
+                groq is not None
+                and isinstance(e, getattr(groq, "RateLimitError", ()))
+            )
+            is_timeout = "timeout" in str(e).lower()
+
+            logger.warning(
+                "stream_component attempt %d/%d: LLM stream failed "
+                "(%s): %s",
+                attempt,
+                total_attempts,
+                type(e).__name__,
+                e,
+            )
+
+            if attempt == total_attempts:
+                kind = (
+                    "rate limit"
+                    if is_rate_limit
+                    else "timeout"
+                    if is_timeout
+                    else "API error"
+                )
+                raise GenerationError(
+                    f"LLM streaming failed after {attempt} attempt(s) "
+                    f"({kind}): {e}"
+                ) from e
+
+            continue
+
+        raw_output = "".join(chunks)
+
+        logger.info(
+            "STREAM RESPONSE COMPLETE | field_name=%r | attempt=%d/%d | "
+            "length=%d chars",
+            field_name,
+            attempt,
+            total_attempts,
+            streamed_chars,
+        )
+
+        if not raw_output or not raw_output.strip():
+            last_exc = EmptyOutputError("Model returned an empty response")
+            logger.warning(
+                "stream_component attempt %d/%d: empty output, retrying",
+                attempt,
+                total_attempts,
+            )
+
+            if attempt == total_attempts:
+                raise last_exc
+
+            continue
+
+        try:
+            code = _extract_code_block(raw_output)
+        except MalformedComponentError as e:
+            last_exc = e
+            logger.warning(
+                "stream_component attempt %d/%d: extraction failed (%s), retrying",
+                attempt,
+                total_attempts,
+                e,
+            )
+
+            if attempt == total_attempts:
+                raise
+
+            continue
+
+        if not code:
+            last_exc = EmptyOutputError("No usable code found in model output")
+            logger.warning(
+                "stream_component attempt %d/%d: no code extracted, retrying",
+                attempt,
+                total_attempts,
+            )
+
+            if attempt == total_attempts:
+                raise last_exc
+
+            continue
+
+        try:
+            validate_component_code(code)
+
+        except SyntaxValidationError as e:
+            last_exc = MalformedComponentError(
+                f"Generated code has syntax errors: {e.errors}"
+            )
+
+            logger.warning(
+                "stream_component attempt %d/%d: syntax validation failed (%s), retrying",
+                attempt,
+                total_attempts,
+                e.errors,
+            )
+
+            if attempt == total_attempts:
+                raise last_exc from e
+
+            continue
+
+        except SecurityValidationError as e:
+            last_exc = MalformedComponentError(
+                f"Generated code failed security checks: {e.flags}"
+            )
+
+            logger.warning(
+                "stream_component attempt %d/%d: security validation failed (%s), retrying",
+                attempt,
+                total_attempts,
+                e.flags,
+            )
+
+            if attempt == total_attempts:
+                raise last_exc from e
+
+            continue
+
+        except ValidatorUnavailableError as e:
+            logger.error("Babel validator unavailable: %s", e)
+            raise GenerationError(
+                "Safety validation unavailable, refusing to ship "
+                f"unverified code: {e}"
+            ) from e
+
+        try:
+            _validate_component_contract(code, field_name)
+
+        except MalformedComponentError as e:
+            last_exc = e
+
+            logger.warning(
+                "stream_component attempt %d/%d: contract validation failed (%s), retrying",
+                attempt,
+                total_attempts,
+                e,
+            )
+
+            if attempt == total_attempts:
+                raise
+
+            continue
+
+        _store_cached_component(cache_key, code)
+
+        logger.info(
+            "STREAM GENERATION SUCCEEDED | field_name=%r | "
+            "attempt=%d/%d | code_chars=%d | cache_entries=%d",
+            field_name,
+            attempt,
+            total_attempts,
+            len(code),
+            len(_component_cache),
+        )
+
+        return
+
+    raise GenerationError(
+        f"Streaming generation failed after {total_attempts} attempt(s): "
+        f"{last_exc}"
+    ) from last_exc
 
 def _extract_code_block(text):
     if not text:
