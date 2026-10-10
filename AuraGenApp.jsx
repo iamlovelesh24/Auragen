@@ -3,7 +3,8 @@ import AuraContainer from "./AuraGenContainer";
 import LLMFallbackBoundary from "./LLMFallbackBoundary";
 import GeneratedPanel from "./src/GeneratedPanel";
 
-const WS_URL = 'ws://localhost:8080';
+const WS_URL =
+  import.meta.env.VITE_WS_URL || "ws://localhost:8080";
 export default function AuraGenApp() {
   const [telemetry, setTelemetry] = useState({
     score: 0,

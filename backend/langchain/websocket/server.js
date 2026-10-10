@@ -1,13 +1,13 @@
 const WebSocket = require('ws');
 const CognitiveLoadCalculator = require('./cognitiveLoad');
 
-const PORT = 8080;
+const PORT = process.env.PORT || 8080;
 const wss = new WebSocket.Server({ port: PORT });
 const calculator = new CognitiveLoadCalculator();
 
 let activeClientsCount = 0;
 
-console.log(`WebSocket telemetry server running on ws://localhost:${PORT}`);
+console.log(`WebSocket telemetry server running on port ${PORT}`);
 
 wss.on('connection', (ws) => {
   activeClientsCount++;

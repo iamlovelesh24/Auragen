@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import * as Babel from "@babel/standalone";
 import LLMFallbackBoundary from "../LLMFallbackBoundary";
 
-const API = "http://localhost:8000/generate";
+const API =
+  import.meta.env.VITE_API_URL || "http://localhost:8000/generate";
 
 const SCORE_NORMAL = 20;
 const SCORE_OVERLOADED = 85;
@@ -14,7 +15,11 @@ function useTailwindCdn() {
     const s = document.createElement("script");
     s.id = "tw-cdn";
     s.src = "https://cdn.tailwindcss.com";
+    s.async = true;
+
     document.head.appendChild(s);
+
+    return () => {};
   }, []);
 }
 
@@ -70,29 +75,28 @@ export default function GeneratedPanel({
   const [status, setStatus] = useState("idle");
   const [Comp, setComp] = useState(null);
   const [genId, setGenId] = useState(0);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState("");
   const [times, setTimes] = useState({});
   const [submitted, setSubmitted] = useState(null);
-
   const [capturedValues, setCapturedValues] = useState({});
 
   /*
    * Capture the original DOM only once.
    *
-   * This keeps the cache key stable between repeated
-   * generation requests.
+   * This keeps the backend cache key stable
+   * between repeated generation requests.
    */
   const originalDomSnapshot = useRef(null);
 
   /*
-   * Store the generation start time separately so that
-   * React re-renders do not affect the measurement.
+   * Store generation start time separately so
+   * React re-renders do not affect measurements.
    */
   const generationStartRef = useRef(null);
 
   /*
-   * Measure actual browser paint after the generated
-   * component has been committed to the DOM.
+   * Prevent render time from being measured more
+   * than once for a generation.
    */
   const renderMeasuredRef = useRef(false);
 
@@ -127,39 +131,12 @@ export default function GeneratedPanel({
     }
   }, [Comp, times.compiled]);
 
-  function captureContext() {
-    const fieldValues = {};
-
-    document
-      .querySelectorAll(
-        "input, textarea, select"
-      )
-      .forEach((field, index) => {
-        const key =
-          field.name ||
-          field.id ||
-          `field-${index}`;
-
-        fieldValues[key] = field.value ?? "";
-      });
-
-    /*
-     * Backend sanitizer expects an HTML string.
-     *
-     * Use the original DOM snapshot so repeated
-     * generation requests can hit the cache.
-     */
-    const domSnapshot =
-      originalDomSnapshot.current ||
-      document.documentElement.outerHTML;
-
-    return {
-      fieldValues,
-      domSnapshot,
-    };
-  }
-
   async function generate() {
+    setStatus("generating");
+    setError("");
+    setComp(null);
+    setSubmitted(null);
+
     const t0 = performance.now();
 
     generationStartRef.current = t0;
@@ -167,128 +144,118 @@ export default function GeneratedPanel({
 
     const t = {
       t0,
+      firstChunk: undefined,
+      final: undefined,
+      compiled: undefined,
+      rendered: undefined,
     };
 
-    setStatus("generating");
-    setError(null);
-    setComp(null);
-    setSubmitted(null);
-    setTimes({
-      t0,
-    });
-
     try {
-      const {
-        fieldValues,
-        domSnapshot,
-      } = captureContext();
+      /*
+       * Capture current field values at generation time.
+       */
+      const values = {};
 
-      setCapturedValues(fieldValues);
+      document
+        .querySelectorAll(
+          "input, textarea, select"
+        )
+        .forEach((el) => {
+          if (el.name) {
+            values[el.name] = el.value;
+          } else if (el.id) {
+            values[el.id] = el.value;
+          }
+        });
 
-      const res = await fetch(API, {
+      setCapturedValues(values);
+
+      /*
+       * Use the original DOM snapshot captured once,
+       * rather than the dynamically changed DOM.
+       */
+      const domSnapshot =
+        originalDomSnapshot.current ||
+        document.documentElement.outerHTML;
+
+      const cognitive_load_score = isOverloaded
+        ? SCORE_OVERLOADED
+        : SCORE_NORMAL;
+
+      const signal_summary = isOverloaded
+        ? "User appears overloaded and is struggling with the current field."
+        : "User is operating normally.";
+
+      const response = await fetch(API, {
         method: "POST",
-
         headers: {
           "Content-Type": "application/json",
         },
-
         body: JSON.stringify({
-          cognitive_load_score:
-            isOverloaded
-              ? SCORE_OVERLOADED
-              : SCORE_NORMAL,
-
+          cognitive_load_score,
           field_name: fieldName,
-
-          signal_summary:
-            isOverloaded
-              ? `high cognitive load on ${fieldName}, long hesitation`
-              : `normal activity on ${fieldName}`,
-
-          original_field_type:
-            originalFieldType,
-
-          dom_snapshot:
-            domSnapshot,
-
-          field_values:
-            fieldValues,
+          signal_summary,
+          original_field_type: originalFieldType,
+          max_retries: 2,
+          dom_snapshot: domSnapshot,
+          field_values: values,
         }),
       });
 
-      if (!res.ok) {
+      if (!response.ok) {
         throw new Error(
-          `HTTP ${res.status}`
+          `AuraGen backend returned HTTP ${response.status}`
         );
       }
 
-      if (!res.body) {
+      if (!response.body) {
         throw new Error(
-          "Backend returned an empty response body"
+          "AuraGen backend returned no streaming response."
         );
       }
 
       const reader =
-        res.body.getReader();
+        response.body.getReader();
 
-      const decoder =
-        new TextDecoder();
+      const decoder = new TextDecoder();
 
       let buf = "";
       let final = null;
 
       while (true) {
-        const {
-          value,
-          done,
-        } = await reader.read();
+        const { value, done } =
+          await reader.read();
 
         if (done) {
           break;
         }
 
-        buf += decoder.decode(
-          value,
-          {
-            stream: true,
-          }
-        );
+        buf += decoder.decode(value, {
+          stream: true,
+        });
 
-        const parts =
-          buf.split("\n\n");
+        const parts = buf.split("\n\n");
 
-        buf =
-          parts.pop() || "";
+        buf = parts.pop() || "";
 
-        for (
-          const part of parts
-        ) {
-          if (
-            !part.startsWith(
-              "data: "
-            )
-          ) {
+        for (const part of parts) {
+          if (!part.startsWith("data: ")) {
             continue;
           }
 
-          const ev =
-            JSON.parse(
-              part.slice(6)
-            );
+          const ev = JSON.parse(
+            part.slice(6)
+          );
 
           if (
             ev.type === "chunk" &&
-            t.firstChunk ===
-              undefined
+            t.firstChunk === undefined
           ) {
             t.firstChunk =
-              performance.now() -
-              t0;
+              performance.now() - t0;
           }
 
-          if (
-            ev.type === "final"
-          ) {
+          if (ev.type === "final") {
             final = ev;
           }
         }
@@ -301,42 +268,36 @@ export default function GeneratedPanel({
       }
 
       t.final =
-        performance.now() -
-        t0;
+        performance.now() - t0;
 
-      if (
-        final.status !==
-        "valid"
-      ) {
+      if (final.status !== "valid") {
         throw new Error(
           `${final.reason}: ${final.message}`
         );
       }
 
-      const C =
-        compileTsx(
-          final.tsx
-        );
+      /*
+       * Compile and validate the generated TSX
+       * before rendering it.
+       */
+      const C = compileTsx(final.tsx);
 
       t.compiled =
-        performance.now() -
-        t0;
+        performance.now() - t0;
 
       setTimes({
         ...t,
       });
 
-      setGenId(
-        (n) => n + 1
-      );
+      /*
+       * Increment generation ID so the fallback
+       * boundary gets a fresh generation identity.
+       */
+      setGenId((n) => n + 1);
 
-      setComp(
-        () => C
-      );
+      setComp(() => C);
 
-      setStatus(
-        "done"
-      );
+      setStatus("done");
     } catch (e) {
       setError(
         e instanceof TypeError
@@ -350,18 +311,14 @@ export default function GeneratedPanel({
         ...t,
       });
 
-      setStatus(
-        "error"
-      );
+      setStatus("error");
     }
   }
 
   const f = (v) =>
     v === undefined
       ? "-"
-      : `${(
-          v / 1000
-        ).toFixed(2)}s`;
+      : `${(v / 1000).toFixed(2)}s`;
 
   return (
     <div
@@ -372,12 +329,10 @@ export default function GeneratedPanel({
       <button
         onClick={generate}
         disabled={
-          status ===
-          "generating"
+          status === "generating"
         }
       >
-        {status ===
-        "generating"
+        {status === "generating"
           ? "Generating..."
           : "Generate redesign"}
       </button>
@@ -398,26 +353,19 @@ export default function GeneratedPanel({
         }}
       >
         first chunk{" "}
-        {f(
-          times.firstChunk
-        )}{" "}
+        {f(times.firstChunk)}{" "}
         | validated final{" "}
-        {f(
-          times.final
-        )}{" "}
+        {f(times.final)}{" "}
         | compiled{" "}
-        {f(
-          times.compiled
-        )}{" "}
+        {f(times.compiled)}{" "}
         | rendered{" "}
-        {f(
-          times.rendered
-        )}
+        {f(times.rendered)}
       </p>
 
       {Comp && (
         <LLMFallbackBoundary
           key={genId}
+          generationKey={genId}
         >
           <Comp
             initialValues={
@@ -434,9 +382,7 @@ export default function GeneratedPanel({
       {submitted && (
         <p>
           onNext received:{" "}
-          {String(
-            submitted
-          )}
+          {String(submitted)}
         </p>
       )}
     </div>
