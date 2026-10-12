@@ -393,22 +393,25 @@ export default function AuraGenApp() {
           </div>
 
           <button
-            style={{
-              marginTop: "24px",
-              width: "100%",
-              padding: "14px",
-              border: "none",
-              borderRadius: "12px",
-              background:
-                "linear-gradient(90deg, #0f4c81, #0891b2)",
-              color: "white",
-              fontSize: "15px",
-              fontWeight: 800,
-              cursor: "pointer",
-            }}
-          >
-            Continue Application
-          </button>
+  type="button"
+  onClick={() => {
+    alert("Application submitted successfully!");
+  }}
+  style={{
+    marginTop: "24px",
+    width: "100%",
+    padding: "14px",
+    border: "none",
+    borderRadius: "12px",
+    background: "linear-gradient(90deg, #0f4c81, #0891b2)",
+    color: "white",
+    fontSize: "15px",
+    fontWeight: 800,
+    cursor: "pointer",
+  }}
+>
+  Continue Application
+</button>
 
           <div
             style={{
