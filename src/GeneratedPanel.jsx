@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from "react";
 import * as Babel from "@babel/standalone";
 import LLMFallbackBoundary from "../LLMFallbackBoundary";
 
-const API =
-  import.meta.env.VITE_API_URL || "http://localhost:8000/generate";
+const API_BASE = import.meta.env.VITE_API_URL;
+const API = API_BASE
+  ? `${API_BASE.replace(/\/$/, "")}/generate`
+  : "http://localhost:8000/generate";
 
 const SCORE_NORMAL = 20;
 const SCORE_OVERLOADED = 85;
