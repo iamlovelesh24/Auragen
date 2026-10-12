@@ -238,7 +238,7 @@ def generate_component(
     field_name,
     signal_summary,
     original_field_type,
-    max_retries=0,
+    max_retries=2,
     dom_snapshot=None,
     field_values=None,
 ):
