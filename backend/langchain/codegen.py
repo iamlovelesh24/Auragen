@@ -51,9 +51,9 @@ if not logger.handlers:
     logger.addHandler(file_handler)
 
 
-MODEL_NAME = os.getenv("CODEGEN_MODEL", "llama-3.3-70b-versatile")
+MODEL_NAME = os.getenv("CODEGEN_MODEL", "openai/gpt-oss-120b")
 TEMPERATURE = 0.3
-MAX_OUTPUT_TOKENS = 3072
+MAX_OUTPUT_TOKENS = 1024
 CACHE_MAX_ENTRIES = 100
 CACHE_TTL_SECONDS = 300
 CACHE_VERSION = "week4-v1"
@@ -238,7 +238,7 @@ def generate_component(
     field_name,
     signal_summary,
     original_field_type,
-    max_retries=2,
+    max_retries=0,
     dom_snapshot=None,
     field_values=None,
 ):
