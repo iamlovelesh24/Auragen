@@ -1,6 +1,7 @@
 langchain
 langchain-openai
 langchain-core
+langchain-groq
 python-dotenv
 fastapi==0.142.2
 uvicorn==0.54.0
