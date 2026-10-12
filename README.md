@@ -1,390 +1,217 @@
-
-
-## Member 2 - Interaction Telemetry
-
-## Project Overview
-
-AuraGen is a browser-based prototype for capturing and analyzing
-user interaction behavior.
-
-The current prototype focuses on click behavior, hesitation
-detection, mouse movement telemetry, interaction patterns, and
-basic telemetry validation.
-
-## Week 1 Implementation
-
-The following interaction features have been implemented in the
-current prototype.
-
-### 1. Click Detection
-
-The application records the number of times the user clicks the
-"Click Me" button.
-
-The click counter increases after every valid button interaction.
-
-### 2. Hesitation Detection
-
-The application calculates hesitation time between user clicks.
-
-For the first click, hesitation time is measured from the beginning
-of the browser session to the first click.
-
-For subsequent clicks, hesitation time is measured from the previous
-click to the current click.
-
-### 3. Hesitation Threshold
-
-The prototype currently uses a hesitation threshold of:
-
-3 seconds
-
-If hesitation time is greater than or equal to 3 seconds, the
-application identifies the interaction as:
-
-"Hesitation detected"
-
-If hesitation time is below 3 seconds, the application identifies
-the interaction as:
-
-"Quick interaction"
-
-### 4. Click Pattern Detection
-
-The prototype classifies click behavior using interaction timing
-and click count.
-
-Current patterns include:
-
-- First click
-- Hesitant interaction
-- Rapid interaction
-- Exploring
-- High click activity
-- Normal interaction
-
-### 5. Mouse Velocity
-
-Mouse movement velocity is calculated using:
-
-Velocity = Distance / Time
-
-The velocity is displayed in pixels per second.
-
-### 6. Average Mouse Velocity
-
-The prototype calculates average mouse velocity using total mouse
-distance divided by total valid mouse movement time.
-
-Average Velocity = Total Distance / Total Movement Time
-
-### 7. Maximum Mouse Velocity
-
-The highest valid mouse velocity recorded during the session is
-displayed as maximum mouse velocity.
-
-The prototype uses a maximum accepted velocity of 3000 pixels per
-second to reduce unrealistic velocity spikes.
-
-### 8. Mouse Distance
-
-The application calculates the total distance travelled by the
-mouse during the interaction session.
-
-Distance is calculated using the movement of the mouse across the
-X and Y coordinates.
-
-### 9. Mouse Movement Time
-
-The prototype records the total valid time associated with mouse
-movement.
-
-Very small time intervals are excluded using a minimum time
-interval of 0.01 seconds.
-
-### 10. Mouse Movement Activity
-
-Mouse movement is classified based on the total mouse distance.
-
-The current classifications are:
-
-- Low movement
-- Moderate movement
-- High movement
-
-### 11. Mouse Velocity Activity
-
-Current mouse velocity is classified into:
-
-- Slow movement
-- Normal movement
-- Fast movement
-
-### 12. Interaction Event Logging
-
-The application maintains an interaction event log.
-
-Each recorded click event contains:
-
-- Event number
-- Time
-- Click number
-- Hesitation time
-- Hesitation status
-- Click pattern
-
-The prototype displays the latest interaction events on the page.
-
-The event log is limited to the latest 10 events.
-
-### 13. Telemetry Validation
-
-The prototype performs basic telemetry validation.
-
-The validation checks that:
-
-- Click count is non-negative
-- Mouse distance is non-negative
-- Mouse movement time is non-negative
-- Mouse velocity values are non-negative
-- Average mouse velocity is consistent with the calculated
-  distance and movement time
-
-The validation result is displayed as:
-
-"Valid"
-
-when the telemetry values pass the checks.
-
-## Current Technical Structure
-
-The prototype currently uses:
-
-- HTML
-- JavaScript
-- Browser DOM APIs
-- Mouse movement events
-- Click events
-- Performance timing
-
-### Main Files
-
-`index.html`
-
-Contains the user interface and telemetry metric displays.
-
-`script.js`
-
-Contains the click detection, hesitation calculation,
-mouse telemetry, interaction classification, event logging,
-and telemetry validation logic.
-
-## Testing Performed
-
-The prototype has been tested using multiple interaction scenarios.
-
-### Quick Interaction
-
-Clicking the button within less than 3 seconds produces:
-
-Quick interaction
-
-### Hesitant Interaction
-
-Waiting 3 seconds or longer before clicking produces:
-
-Hesitation detected
-
-### Repeated Interaction
-
-Multiple clicks produce different click pattern classifications
-depending on timing and click count.
-
-### Mouse Movement
-
-Moving the mouse across the page updates:
-
-- Current velocity
-- Velocity activity
-- Average velocity
-- Maximum velocity
-- Mouse distance
-- Mouse movement activity
-- Mouse movement time
-
-### Event Logging
-
-Each button interaction is recorded in the Interaction Event Log.
-
-### Telemetry Validation
-
-The current prototype displays:
-
-Telemetry Validation: Valid
-
-when the collected telemetry passes the implemented validation checks.
-
-## Week 1 Status
-
-The current browser prototype contains the core interaction
-telemetry functionality implemented for the Week 1 work.
-
-Further development can extend the prototype with additional
-telemetry storage, backend integration, real-time data streaming,
-and a production-ready application architecture.
-
-## React Telemetry Hook
-
-### Member 2 Integration Layer
-
-AuraGen provides a reusable React telemetry hook through:
-
-`useAuraGenTelemetry.js`
-
-The hook consumes the existing AuraGen telemetry API:
-
-`window.getAuraGenTelemetry()`
-
-It exposes the following telemetry metrics to a React component:
-
-- Click count
-- Hesitation time
-- Hesitation status
+AuraGen — Self-Healing Generative UI
+An adaptive financial application that detects user interaction friction and dynamically transforms the UI when cognitive load becomes high.
+
+Overview
+AuraGen is a self-healing Generative UI system designed to improve user experience by detecting signs of cognitive friction during form interaction.
+The system captures real-time interaction telemetry such as mouse movement, velocity, clicks, and hesitation. These signals are used to determine the user's cognitive-load state.
+When high cognitive load is detected, AuraGen triggers a backend generation pipeline that:
+1. Captures the current UI context and user state
+2. Sends the context to the LangChain + Groq generation pipeline
+3. Generates React UI code
+4. Validates the generated code using Babel
+5. Compiles the validated component
+6. Dynamically renders an adaptive financial experience
+The financial application demonstrates this through a focused, step-by-step wizard.
+Architecture
+                    USER
+                     │
+                     ▼
+             React Financial Form
+                     │
+                     ▼
+            Interaction Telemetry
+        ┌────────────┼────────────┐
+        │            │            │
+     Movement     Clicks      Hesitation
+        │            │            │
+        └────────────┼────────────┘
+                     ▼
+             Cognitive Load Score
+                     │
+                     ▼
+             High Load Detection
+                     │
+                     ▼
+              WebSocket Layer
+                     │
+                     ▼
+             FastAPI Backend
+                     │
+                     ▼
+            LangChain + Groq
+                     │
+                     ▼
+             React Code Generation
+                     │
+                     ▼
+              Babel Validation
+                     │
+                     ▼
+             Component Compilation
+                     │
+                     ▼
+              Dynamic Rendering
+                     │
+                     ▼
+          AuraGen Adaptive Wizard
+Key Features
+Real-Time Telemetry
+Tracks user interaction signals including:
+- Mouse movement
 - Mouse velocity
-- Average mouse velocity
-- Maximum mouse velocity
-- Mouse distance
-- Mouse movement time
-- Click pattern
+- Click activity
+- Hesitation
+- Interaction patterns
+Cognitive Load Detection
+Telemetry signals are converted into a cognitive-load state.
+Normal Operations
+        ↓
+High Load
+        ↓
+Focused Mode
+Generative UI Pipeline
+AuraGen uses a backend generation pipeline powered by:
+- FastAPI
+- LangChain
+- Groq
+- React
+- Babel validation
+Generated UI code is validated before being rendered.
+Adaptive Financial Wizard
+The financial application can transform into a focused six-step experience:
+1. Full Name
+2. Mobile Number
+3. Monthly Income
+4. Employment Type
+5. Loan Amount
+6. Loan Tenure
+The wizard supports:
+- Step-by-step navigation
+- Back / Continue controls
+- Input preservation
+- Validation
+- Application submission
+Context Awareness
+The generation request includes relevant UI context and current field values so that the adaptive experience can preserve the user's existing information.
+Safety & Fallback
+Generated UI code passes through a validation layer before rendering.
+Fallback handling is also provided when generated output cannot safely be rendered.
+Performance Monitoring
+AuraGen records generation pipeline timings including:
+- First response chunk
+- Final validation
+- Compilation
+- Rendering
+Technology Stack
+Layer	Technology
+Frontend	React + Vite
+UI Animation	Framer Motion
+Telemetry	JavaScript / React
+Real-Time Communication	WebSocket
+Backend API	FastAPI
+AI Orchestration	LangChain
+LLM	Groq
+Code Validation	Babel
+Frontend Deployment	Vercel
+Backend Deployment	Render
+WebSocket Deployment	Render
 
-The hook refreshes telemetry periodically and cleans up its timer when the React component is unmounted.
 
-### Purpose
-
-This hook provides a bridge between the existing AuraGen JavaScript telemetry engine and a future React-based user interface without changing the current telemetry detection logic.
-
-## Week 3: Contextual Awareness & UI Morphing
-
-### Contextual Awareness
-
-AuraGen now captures the current user and UI context before generating an adaptive interface.
-
-Implemented through:
-
-- `contextAwareness.js`
-- Captures current user input and active UI state
-- Captures DOM metadata such as page title, URL, forms, inputs, and element count
-- Provides structured context through `getAuraGenContext()`
-- Preserves user-entered information for adaptive UI generation
-
-### UI Morphing
-
-AuraGen now supports dynamic UI transformation based on the captured context.
-
-Implemented through:
-
-- `morphingUI.js`
-- Dynamically transforms the existing interface into an adaptive UI
-- Preserves previously entered user information
-- Displays the generated contextual interface without requiring a page refresh
-- Provides a foundation for future AI-generated UI components
-
-### Week 3 Validation
-
-The Week 3 implementation was validated through browser-based testing.
-
-Verified:
-
-- Context data is captured correctly
-- User input is preserved
-- DOM context is available
-- Adaptive UI transformation completes successfully
-- Contextual information is displayed in the transformed UI
-
-## Week 4: Latency Optimization & Graceful Fallback
-
-### Latency Optimization
-- Added context-based caching for repeated UI transformations.
-- Added browser performance measurement using `performance.now()`.
-- Added cache hit/miss tracking.
-- Reduced repeated UI processing through cached context reuse.
-
-### Refine & Polish
-- Added graceful fallback handling for UI transformation failures.
-- Preserved the existing interface when adaptive UI generation fails.
-- Added a user-friendly fallback notification.
-- Safely replaces previously generated adaptive UI.
-
-### Week 4 Validation
-- Verified successful adaptive UI transformation.
-- Verified cache miss on first transformation.
-- Verified cache hit on repeated transformation.
-- Verified latency measurement.
-- Verified graceful fallback behavior.
-
-# Member 3 Implementation: Real-Time Interaction Telemetry & Sliding-Window Cognitive Load Engine
-
-## Project Overview
-AuraGen is a browser-based prototype designed to capture, stream, and evaluate real-time user interaction behavior. As Member 3 (`pravalika022`), this module establishes the core backend telemetry streaming pipeline using WebSockets and processes live interaction metrics using a sliding-window cognitive load calculation engine.
-
-The module ingests high-frequency behavioral signals—including mouse movements, cursor velocity, hesitation delays, and button interactions—and continuously evaluates user engagement and cognitive strain.
-
----
-
-## Technical Scope & Architecture
-
-### Key Deliverables
-* **Real-Time Ingestion Server (`server.js`)**: A scalable WebSocket server operating on port 8080 to maintain persistent, low-latency connections with active client sessions.
-* **Sliding-Window Scoring Engine (`cognitiveLoad.js`)**: An algorithmic engine that processes raw interaction events over a rolling time window to compute real-time cognitive load indicators.
-* **Simulation & Verification Suite (`test-client.js`)**: An end-to-end telemetry event simulator that verifies active socket handshakes, payload ingestion, and session reset handling.
-* **Module Specs & Documentation (`package.json`, `README.md`)**: Configured package manifests, npm dependencies (`ws`), and standardized repository documentation.
-
----
-
-## Comprehensive Implementation Topics
-
-### 1. WebSocket Server Initialization
-* Built a dedicated WebSocket backend listening on `ws://localhost:8080`.
-* Configured connection state management to handle client join/leave lifecycles cleanly.
-
-### 2. Live Interaction Streaming Pipeline
-* Configured real-time message listeners (`ws.on('message')`) to receive JSON interaction payloads.
-* Maintained uninterrupted, bi-directional telemetry communication channels between browser clients and the backend engine.
-
-### 3. Telemetry Payload Schema Validation
-* Enforced schema validation for incoming JSON event structures.
-* Handled edge cases such as malformed JSON, missing action types, or out-of-bounds metrics to maintain backend stability.
-
-### 4. Sliding-Window Cognitive Load Processing Engine
-* Implemented a sliding time-window algorithm to track real-time interaction density.
-* Evaluates active user engagement and cognitive strain by measuring signal frequency within defined temporal boundaries.
-
-### 5. Hesitation & Velocity Metric Integration
-* Ingested hesitation metrics (measuring pause durations in milliseconds before critical user actions).
-* Analyzed mouse movement dynamics, including coordinate deltas and cursor speed velocity vectors (`x`, `y`, `velocity`).
-
-### 6. Session State Reset & Buffer Management
-* Implemented listener support for `reset_session` telemetry signals.
-* Clears active calculation buffers and re-initializes sliding window metrics dynamically upon receiving session reset signals.
-
-### 7. End-to-End Simulation & Verification
-* Developed `test-client.js` to emit automated sequences of simulated interaction payloads (`mouse_move`, `hesitation`, `click`, `reset_session`).
-* Verified real-time transmission delays (`setTimeout` intervals) and confirmed live backend score processing logs.
-
----
-
-## Current Technical File Structure
-
-```text
-AuraGen/
-├── index.html
-├── script.js
-├── useAuraGenTelemetry.js
-├── backend/langchain/websocket/
-│   ├── cognitiveLoad.js    # Sliding-window cognitive load calculation engine
-│   ├── server.js           # Real-time WebSocket ingestion server (port 8080)
-│   ├── test-client.js      # Telemetry event simulation and execution test client
-│   ├── package.json        # Dependencies (ws module) and runtime script configs
-│   └── README.md           # Modular documentation and API specs
-└── README.md               # Root repository documentation
-```
+Project Structure
+Auragen/
+│
+├── src/
+│   ├── AuraGenApp.jsx
+│   └── GeneratedPanel.jsx
+│
+├── backend/
+│   └── langchain/
+│       ├── codegen.py
+│       ├── prompts.py
+│       ├── stream_api.py
+│       ├── dom_sanitizer.py
+│       ├── babel_bridge.py
+│       ├── test_codegen.py
+│       │
+│       ├── babel_validator/
+│       │   └── validate.mjs
+│       │
+│       └── websocket/
+│           └── server.js
+│
+├── package.json
+├── vite.config.js
+└── README.md
+Live Demo
+Production Frontend
+https://auragen-blush.vercel.app
+Production Architecture
+                    Vercel
+                      │
+                      ▼
+              React / Vite Frontend
+                 │            │
+                 │            │
+            WebSocket       HTTP/SSE
+                 │            │
+                 ▼            ▼
+             Render        Render
+          WebSocket       FastAPI
+            Server         Backend
+                              │
+                              ▼
+                           Groq LLM
+Running Locally
+AuraGen uses three services during local development.
+1. Start the WebSocket Server
+cd C:\Users\Ruchitha\Auragen\backend\langchain\websocket
+node server.js
+The telemetry WebSocket server runs on:
+ws://localhost:8080
+2. Start the FastAPI Backend
+cd C:\Users\Ruchitha\Auragen\backend\langchain
+uvicorn stream_api:app --reload --port 8000
+The API runs on:
+http://localhost:8000
+3. Start the Frontend
+cd C:\Users\Ruchitha\Auragen
+npm run dev
+Open the Vite URL displayed in the terminal.
+Demo Flow
+1. Open the production application.
+2. Confirm Status: Connected.
+3. Use Simulate Hesitation until High Load (Focused Mode) appears.
+4. Click Generate redesign.
+5. Observe the generation, validation, compilation and rendering timings.
+6. Complete the six-step AuraGen Adaptive Wizard.
+7. Click Submit Application.
+Team Contributions
+- Member 1: Mouse movement and velocity telemetry
+- Member 2: Click and hesitation detection
+- Member 3: WebSocket telemetry communication
+- Member 4: LangChain / Groq code generation and validation
+- Team Integration: Context awareness, adaptive UI, fallback handling, performance optimization and deployment
+Security
+AuraGen follows a server-side secret management approach.
+Do not commit API keys to GitHub.
+The Groq API key is stored as a deployment environment variable on the backend.
+Frontend environment variables should contain only non-secret configuration such as:
+VITE_API_URL
+VITE_WS_URL
+Important Implementation Note
+For the financial-form use case, the final six-step adaptive wizard is implemented through the application's financial wizard wrapper.
+The backend generation pipeline still executes the generation, validation, compilation, and rendering flow as part of the redesign process.
+This provides a reliable and controlled demonstration of the adaptive financial experience while maintaining the generative UI pipeline.
+Project Outcome
+AuraGen demonstrates how an application can move beyond static interfaces by responding to how a user interacts with the UI, rather than waiting for the user to explicitly request assistance.
+Detect Friction
+      ↓
+Understand Context
+      ↓
+Generate Adaptation
+      ↓
+Validate Safely
+      ↓
+Render Better UI
+AuraGen
+Interfaces that adapt to the user.
